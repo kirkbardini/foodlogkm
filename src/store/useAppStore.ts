@@ -177,44 +177,56 @@ export const useAppStore = create<AppState>()(
             }
           }
 
-          // Carregar dados do Firebase (fonte da verdade)
+          // Carregar dados do Firebase apenas se necessário
           try {
-            console.log('🍎 Carregando dados do Firebase...');
-            const { foods: firebaseFoods, users: firebaseUsers } = await firebaseSyncService.loadAllUsersData();
-            console.log(`📦 Encontrados ${firebaseFoods.length} alimentos e ${firebaseUsers.length} usuários no Firebase`);
+            console.log('🍎 Verificando sincronização com Firebase...');
             
-            // Adicionar/atualizar alimentos do Firebase no IndexedDB (cache local)
-            for (const food of firebaseFoods) {
-              try {
-                // Verificar se alimento já existe
-                const existingFood = await database.getFood(food.id);
-                if (existingFood) {
-                  // Atualizar se já existe
-                  await database.updateFood(food);
-                  console.log(`🔄 Alimento atualizado do Firebase: ${food.name}`);
-                } else {
-                  // Adicionar se não existe
-                  await database.addFood(food);
-                  console.log(`✅ Alimento adicionado do Firebase: ${food.name}`);
+            // Verificar se já temos dados locais suficientes
+            const localFoods = await database.getAllFoods();
+            const localUsers = await database.getAllUsers();
+            
+            if (localFoods.length > 0 && localUsers.length > 0) {
+              console.log(`✅ Dados locais encontrados: ${localFoods.length} alimentos, ${localUsers.length} usuários`);
+              console.log('📱 Usando dados locais - Firebase já sincronizado');
+              set({ foods: localFoods, entries, users: localUsers });
+            } else {
+              console.log('🔄 Dados locais insuficientes, carregando do Firebase...');
+              const { foods: firebaseFoods, users: firebaseUsers } = await firebaseSyncService.loadAllUsersData();
+              console.log(`📦 Encontrados ${firebaseFoods.length} alimentos e ${firebaseUsers.length} usuários no Firebase`);
+              
+              // Adicionar/atualizar alimentos do Firebase no IndexedDB (cache local)
+              for (const food of firebaseFoods) {
+                try {
+                  // Verificar se alimento já existe
+                  const existingFood = await database.getFood(food.id);
+                  if (existingFood) {
+                    // Atualizar se já existe
+                    await database.updateFood(food);
+                    console.log(`🔄 Alimento atualizado do Firebase: ${food.name}`);
+                  } else {
+                    // Adicionar se não existe
+                    await database.addFood(food);
+                    console.log(`✅ Alimento adicionado do Firebase: ${food.name}`);
+                  }
+                } catch (error) {
+                  console.warn(`⚠️ Erro ao sincronizar alimento ${food.name}:`, error);
                 }
-              } catch (error) {
-                console.warn(`⚠️ Erro ao sincronizar alimento ${food.name}:`, error);
               }
+              
+              // Atualizar usuários do Firebase (metas)
+              for (const user of firebaseUsers) {
+                await database.updateUser(user);
+                console.log(`👤 Usuário atualizado do Firebase: ${user.name}`);
+              }
+              
+              // Carregar todos os dados do IndexedDB para o estado
+              const allFoods = await database.getAllFoods();
+              const allUsers = await database.getAllUsers();
+              console.log(`✅ ${allFoods.length} alimentos e ${allUsers.length} usuários carregados do Firebase`);
+              set({ foods: allFoods, entries, users: allUsers });
             }
-            
-            // Atualizar usuários do Firebase (metas)
-            for (const user of firebaseUsers) {
-              await database.updateUser(user);
-              console.log(`👤 Usuário atualizado do Firebase: ${user.name}`);
-            }
-            
-            // Carregar todos os dados do IndexedDB para o estado
-            const allFoods = await database.getAllFoods();
-            const allUsers = await database.getAllUsers();
-            console.log(`✅ ${allFoods.length} alimentos e ${allUsers.length} usuários carregados do Firebase`);
-            set({ foods: allFoods, entries, users: allUsers });
           } catch (error) {
-            console.error('Erro ao carregar alimentos do Firebase:', error);
+            console.error('Erro ao carregar dados do Firebase:', error);
             // Fallback: usar dados locais se Firebase falhar
             set({ foods, entries, users: users.length > 0 ? users : defaultUsers });
           }
