@@ -19,6 +19,7 @@ interface AppState {
   selectedDate: string;
   isLoading: boolean;
   error: string | null;
+  isInitialized: boolean;
 
   // Dados
   foods: FoodItem[];
@@ -36,6 +37,9 @@ interface AppState {
   setSelectedDate: (date: string) => void;
   setUsers: (users: UserPrefs[]) => void;
   setError: (error: string | null) => void;
+  
+  // Listeners em tempo real
+  setupRealtimeListeners: () => Promise<void>;
 
   // Ações de alimentos
   addFood: (food: Omit<FoodItem, 'id'>) => Promise<void>;
@@ -119,6 +123,7 @@ export const useAppStore = create<AppState>()(
       selectedDate: new Date().toISOString().split('T')[0],
       isLoading: false,
       error: null,
+      isInitialized: false,
       foods: [],
       entries: [],
       users: defaultUsers,
@@ -126,12 +131,25 @@ export const useAppStore = create<AppState>()(
 
       // Inicialização
       initializeApp: async () => {
+        const { isInitialized, isLoading } = get();
+        if (isInitialized || isLoading) {
+          console.log('⚠️ Aplicação já inicializada ou em processo, pulando...');
+          return;
+        }
+        
         set({ isLoading: true, error: null });
         try {
+          console.log('🚀 Inicializando aplicação...');
           await database.init();
           // Carregar dados locais como fallback
           await get().loadInitialData();
           await get().autoSelectUser();
+          
+          // Configurar listener em tempo real para alimentos - DESABILITADO temporariamente
+          // await get().setupRealtimeListeners();
+          
+          set({ isInitialized: true });
+          console.log('✅ Aplicação inicializada com sucesso');
         } catch (error) {
           set({ error: 'Erro ao inicializar aplicação' });
           console.error('Erro na inicialização:', error);
@@ -142,45 +160,112 @@ export const useAppStore = create<AppState>()(
 
       loadInitialData: async () => {
         try {
+          console.log('📊 Carregando dados iniciais...');
           const [foods, entries, users] = await Promise.all([
             database.getAllFoods(),
             database.getAllEntries(),
             database.getAllUsers()
           ]);
 
+          console.log(`📊 Dados carregados: ${foods.length} alimentos, ${entries.length} entradas, ${users.length} usuários`);
+
           // Se não há usuários, cria os padrões
           if (users.length === 0) {
+            console.log('👥 Criando usuários padrão...');
             for (const user of defaultUsers) {
               await database.updateUser(user);
             }
           }
 
-          // Se não há alimentos, carrega a base inicial
-          if (foods.length === 0) {
-            try {
-              const response = await fetch('/foodlogkm/data/foods.min.json');
-              if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+          // Carregar dados do Firebase (fonte da verdade)
+          try {
+            console.log('🍎 Carregando dados do Firebase...');
+            const { foods: firebaseFoods, users: firebaseUsers } = await firebaseSyncService.loadAllUsersData();
+            console.log(`📦 Encontrados ${firebaseFoods.length} alimentos e ${firebaseUsers.length} usuários no Firebase`);
+            
+            // Adicionar/atualizar alimentos do Firebase no IndexedDB (cache local)
+            for (const food of firebaseFoods) {
+              try {
+                // Verificar se alimento já existe
+                const existingFood = await database.getFood(food.id);
+                if (existingFood) {
+                  // Atualizar se já existe
+                  await database.updateFood(food);
+                  console.log(`🔄 Alimento atualizado do Firebase: ${food.name}`);
+                } else {
+                  // Adicionar se não existe
+                  await database.addFood(food);
+                  console.log(`✅ Alimento adicionado do Firebase: ${food.name}`);
+                }
+              } catch (error) {
+                console.warn(`⚠️ Erro ao sincronizar alimento ${food.name}:`, error);
               }
-              const initialFoods = await response.json();
-              
-              for (const food of initialFoods) {
-                await database.addFood(food);
-              }
-            } catch (error) {
-              console.error('Erro ao carregar alimentos iniciais:', error);
             }
+            
+            // Atualizar usuários do Firebase (metas)
+            for (const user of firebaseUsers) {
+              await database.updateUser(user);
+              console.log(`👤 Usuário atualizado do Firebase: ${user.name}`);
+            }
+            
+            // Carregar todos os dados do IndexedDB para o estado
+            const allFoods = await database.getAllFoods();
+            const allUsers = await database.getAllUsers();
+            console.log(`✅ ${allFoods.length} alimentos e ${allUsers.length} usuários carregados do Firebase`);
+            set({ foods: allFoods, entries, users: allUsers });
+          } catch (error) {
+            console.error('Erro ao carregar alimentos do Firebase:', error);
+            // Fallback: usar dados locais se Firebase falhar
+            set({ foods, entries, users: users.length > 0 ? users : defaultUsers });
           }
-
-          set({ foods, entries, users: users.length > 0 ? users : defaultUsers });
         } catch (error) {
           console.error('Erro ao carregar dados iniciais:', error);
+          // Em caso de erro, usar dados vazios
+          set({ foods: [], entries: [], users: defaultUsers });
         }
       },
 
       autoSelectUser: async () => {
         // Esta função será implementada quando o Firebase estiver configurado
         // Por enquanto, mantém o usuário padrão
+      },
+
+      // Configurar listeners em tempo real
+      setupRealtimeListeners: async () => {
+        try {
+          console.log('🔄 Configurando listeners em tempo real...');
+          
+          // Listener para alimentos
+          firebaseSyncService.onFoodsChange(async (firebaseFoods) => {
+            console.log('🔄 Alimentos atualizados em tempo real:', firebaseFoods.length);
+            
+            // Atualizar IndexedDB (cache local) com lógica upsert
+            for (const food of firebaseFoods) {
+              try {
+                // Verificar se alimento já existe
+                const existingFood = await database.getFood(food.id);
+                if (existingFood) {
+                  // Atualizar se já existe
+                  await database.updateFood(food);
+                  console.log(`🔄 Alimento atualizado: ${food.name}`);
+                } else {
+                  // Adicionar se não existe
+                  await database.addFood(food);
+                  console.log(`✅ Alimento adicionado: ${food.name}`);
+                }
+              } catch (error) {
+                console.warn(`⚠️ Erro ao sincronizar alimento ${food.name}:`, error);
+              }
+            }
+            
+            // Atualizar estado
+            set({ foods: firebaseFoods });
+          });
+          
+          console.log('✅ Listeners configurados');
+        } catch (error) {
+          console.error('Erro ao configurar listeners:', error);
+        }
       },
 
       // Ações de usuário
@@ -201,7 +286,7 @@ export const useAppStore = create<AppState>()(
         set(state => ({ foods: [...state.foods, food] }));
         console.log(`✅ Alimento salvo localmente: ${food.name}`);
         
-        // Sincronização automática com Firebase
+        // Sincronização automática com Firebase (GRADUAL - alimentos)
         await syncToFirebase(() => firebaseSyncService.saveFood(food), `alimento ${food.name}`);
       },
 
@@ -211,18 +296,18 @@ export const useAppStore = create<AppState>()(
           foods: state.foods.map(f => f.id === food.id ? food : f)
         }));
         
-        // Sincronização automática com Firebase
+        // Sincronização automática com Firebase (GRADUAL - alimentos)
         await syncToFirebase(() => firebaseSyncService.saveFood(food), `alimento ${food.name}`);
       },
 
       deleteFood: async (id) => {
-        const food = get().foods.find(f => f.id === id);
         await database.deleteFood(id);
         set(state => ({
           foods: state.foods.filter(f => f.id !== id)
         }));
         
-        // Sincronização automática com Firebase
+        // Sincronização automática com Firebase (GRADUAL - alimentos)
+        const food = get().foods.find(f => f.id === id);
         if (food) {
           await syncToFirebase(() => firebaseSyncService.deleteFood(id), `alimento ${food.name}`);
         }
@@ -230,11 +315,17 @@ export const useAppStore = create<AppState>()(
 
       searchFoods: (query) => {
         const { foods } = get();
+        if (!query || query.trim() === '') {
+          return foods;
+        }
+        
+        const searchTerm = query.toLowerCase().trim();
         return foods.filter(food => 
-          food.name.toLowerCase().includes(query.toLowerCase()) ||
-          food.category.toLowerCase().includes(query.toLowerCase())
+          food.name.toLowerCase().includes(searchTerm) ||
+          food.category.toLowerCase().includes(searchTerm)
         );
       },
+
 
       importFoods: async (newFoods) => {
         let added = 0;
@@ -267,7 +358,7 @@ export const useAppStore = create<AppState>()(
         set(state => ({ entries: [...state.entries, entry] }));
         console.log(`✅ Entrada salva localmente: ${entry.id}`);
         
-        // Sincronização automática com Firebase
+        // Sincronização automática com Firebase (GRADUAL - entradas)
         await syncToFirebase(() => firebaseSyncService.saveEntry(entry), `entrada ${entry.foodId}`);
       },
 
@@ -286,18 +377,20 @@ export const useAppStore = create<AppState>()(
           entries: state.entries.map(e => e.id === entry.id ? updatedEntry : e)
         }));
         
-        // Sincronização automática com Firebase
+        // Sincronização automática com Firebase (GRADUAL - entradas)
         await syncToFirebase(() => firebaseSyncService.saveEntry(updatedEntry), `entrada ${updatedEntry.foodId}`);
       },
 
       deleteEntry: async (id) => {
+        // Buscar entrada ANTES de remover do estado
         const entry = get().entries.find(e => e.id === id);
+        
         await database.deleteEntry(id);
         set(state => ({
           entries: state.entries.filter(e => e.id !== id)
         }));
         
-        // Sincronização automática com Firebase
+        // Sincronização automática com Firebase (GRADUAL - entradas)
         if (entry) {
           await syncToFirebase(() => firebaseSyncService.deleteEntry(id), `entrada ${entry.foodId}`);
         }
@@ -331,7 +424,7 @@ export const useAppStore = create<AppState>()(
         if (updatedUser) {
           await database.updateUser(updatedUser);
           
-          // Sincronização automática com Firebase
+          // Sincronização automática com Firebase (GRADUAL - apenas usuários)
           await syncToFirebase(() => firebaseSyncService.saveUsers([updatedUser]), `usuário ${updatedUser.name}`);
         }
         
@@ -351,10 +444,18 @@ export const useAppStore = create<AppState>()(
 
       // Limpeza de duplicações
       cleanDuplicates: async () => {
-        const result = await database.cleanAllDuplicates();
-        // Recarregar dados após limpeza
-        await get().loadInitialData();
-        return result;
+        try {
+          console.log('🧹 Limpando duplicatas de alimentos e entradas...');
+          const result = await database.cleanAllDuplicates();
+          console.log(`✅ Limpeza concluída: ${result.foods.removed} alimentos e ${result.entries.removed} entradas removidas`);
+          
+          // Recarregar dados após limpeza
+          await get().loadInitialData();
+          return result;
+        } catch (error) {
+          console.error('Erro ao limpar duplicatas:', error);
+          throw error;
+        }
       },
 
 

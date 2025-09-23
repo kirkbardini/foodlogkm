@@ -9,11 +9,13 @@ import { Modal } from './ui/Modal';
 interface FirebaseSyncProps {
   isOpen?: boolean;
   onClose?: () => void;
+  onLoadingChange?: (loading: boolean) => void;
 }
 
 export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
   isOpen = false,
-  onClose = () => {}
+  onClose = () => {},
+  onLoadingChange
 }) => {
   const {
     users,
@@ -28,9 +30,8 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
   const [showSyncModal, setShowSyncModal] = useState(false);
-  const [usersListener, setUsersListener] = useState<(() => void) | null>(null);
 
-  // Verificar autenticação
+  // Verificar autenticação - REABILITADO para usuários
   useEffect(() => {
     const unsubscribe = firebaseSyncService.onAuthStateChanged((user) => {
       const authenticated = user !== null;
@@ -47,46 +48,46 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
     return () => unsubscribe();
   }, []);
 
-  // Listener para mudanças de usuários em tempo real
-  useEffect(() => {
-    if (isAuthenticated) {
-      const unsubscribe = firebaseSyncService.onUsersChange((firebaseUsers) => {
-        console.log('🔄 Usuários atualizados em tempo real do Firebase:', firebaseUsers);
-        
-        // Aplicar migração apenas se necessário para TODOS os macros
-        const migratedUsers = firebaseUsers.map(user => {
-          const needsMigration = !user.goals.water_ml || user.goals.water_ml === 0;
-          
-          if (needsMigration) {
-            console.log(`🔧 Migrando usuário ${user.name} - aplicando metas padrão`);
-            return {
-              ...user,
-              goals: {
-                protein_g: user.goals.protein_g || (user.id === 'kirk' ? 160 : 120),
-                  carbs_g: user.goals.carbs_g || (user.id === 'kirk' ? 220 : 180),
-                  fat_g: user.goals.fat_g || (user.id === 'kirk' ? 60 : 50),
-                  kcal: user.goals.kcal || (user.id === 'kirk' ? 2400 : 2000),
-                  water_ml: user.goals.water_ml || (user.id === 'kirk' ? 3000 : 2500)
-              }
-            };
-          }
-          
-          return user;
-        });
-        
-        // Firebase é a fonte da verdade - substitui completamente os dados locais
-        setUsers(migratedUsers);
-      });
-      setUsersListener(() => unsubscribe);
-    }
-    
-    return () => {
-      if (usersListener) {
-        usersListener();
-        setUsersListener(null);
-      }
-    };
-  }, [isAuthenticated, setUsers]);
+  // Listener para mudanças de usuários em tempo real - DESABILITADO temporariamente
+  // useEffect(() => {
+  //   if (isAuthenticated) {
+  //     const unsubscribe = firebaseSyncService.onUsersChange((firebaseUsers) => {
+  //       console.log('🔄 Usuários atualizados em tempo real do Firebase:', firebaseUsers);
+  //       
+  //       // Aplicar migração apenas se necessário para TODOS os macros
+  //       const migratedUsers = firebaseUsers.map(user => {
+  //         const needsMigration = !user.goals.water_ml || user.goals.water_ml === 0;
+  //         
+  //         if (needsMigration) {
+  //           console.log(`🔧 Migrando usuário ${user.name} - aplicando metas padrão`);
+  //           return {
+  //             ...user,
+  //             goals: {
+  //               protein_g: user.goals.protein_g || (user.id === 'kirk' ? 160 : 120),
+  //                 carbs_g: user.goals.carbs_g || (user.id === 'kirk' ? 220 : 180),
+  //                 fat_g: user.goals.fat_g || (user.id === 'kirk' ? 60 : 50),
+  //                 kcal: user.goals.kcal || (user.id === 'kirk' ? 2400 : 2000),
+  //                 water_ml: user.goals.water_ml || (user.id === 'kirk' ? 3000 : 2500)
+  //             }
+  //           };
+  //         }
+  //         
+  //         return user;
+  //       });
+  //       
+  //       // Firebase é a fonte da verdade - substitui completamente os dados locais
+  //       setUsers(migratedUsers);
+  //     });
+  //     setUsersListener(() => unsubscribe);
+  //   }
+  //   
+  //   return () => {
+  //     if (usersListener) {
+  //       usersListener();
+  //       setUsersListener(null);
+  //     }
+  //   };
+  // }, [isAuthenticated, setUsers]);
 
   const checkAuthentication = async () => {
     const user = firebaseSyncService.getCurrentUser();
@@ -94,44 +95,23 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
       setIsAuthenticated(true);
       console.log('✅ Usuário autenticado, verificando sincronização...');
       
-      // Verificação inteligente: só carrega se necessário
-      try {
-        const localFoods = await database.getAllFoods();
-        const localEntries = await database.getAllEntries();
-        
-        const syncStatus = await firebaseSyncService.checkSyncStatus(
-          localFoods.length, 
-          localEntries.length
-        );
-        
-        if (syncStatus.needsSync) {
-          console.log(`🔄 ${syncStatus.reason} - Carregando dados seletivamente...`);
-          console.log(`🔍 Debug: needsFoods=${syncStatus.needsFoods}, needsEntries=${syncStatus.needsEntries}`);
-          
-          // Carregar apenas o que é diferente
-          if (syncStatus.needsFoods && syncStatus.needsEntries) {
-            console.log('📦 Carregando alimentos e entradas do Firebase...');
-            await loadDataFromFirebase();
-          } else if (syncStatus.needsFoods) {
-            console.log('🍎 Carregando apenas alimentos do Firebase...');
-            await loadDataFromFirebase(true, false);
-          } else if (syncStatus.needsEntries) {
-            console.log('📝 Carregando apenas entradas do Firebase...');
-            await loadDataFromFirebase(false, true);
-          }
-        } else {
-          console.log(`✅ ${syncStatus.reason} - Usando dados locais`);
-        }
-      } catch (error) {
-        console.warn('⚠️ Erro na verificação de sincronização:', error);
-        console.log('📱 Usando dados locais como fallback');
-      }
+      // Mostrar loading durante verificação
+      onLoadingChange?.(true);
+      
+      // DESABILITADO temporariamente para evitar loops
+      console.log('✅ Sincronização automática desabilitada temporariamente');
+      
+      // Simular tempo de carregamento
+      setTimeout(() => {
+        onLoadingChange?.(false);
+      }, 1000);
     }
   };
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
     setSyncStatus('syncing');
+    onLoadingChange?.(true);
     
     try {
       const success = await firebaseSyncService.signInWithGoogle();
@@ -139,37 +119,8 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
         setIsAuthenticated(true);
         console.log('✅ Login realizado, verificando sincronização...');
         
-        // Verificação inteligente após login
-        try {
-          const localFoods = await database.getAllFoods();
-          const localEntries = await database.getAllEntries();
-          
-          const syncStatus = await firebaseSyncService.checkSyncStatus(
-            localFoods.length, 
-            localEntries.length
-          );
-          
-          if (syncStatus.needsSync) {
-            console.log(`🔄 ${syncStatus.reason} - Carregando dados seletivamente...`);
-            
-            // Carregar apenas o que é diferente
-            if (syncStatus.needsFoods && syncStatus.needsEntries) {
-              console.log('📦 Carregando alimentos e entradas do Firebase...');
-              await loadDataFromFirebase();
-            } else if (syncStatus.needsFoods) {
-              console.log('🍎 Carregando apenas alimentos do Firebase...');
-              await loadDataFromFirebase(true, false);
-            } else if (syncStatus.needsEntries) {
-              console.log('📝 Carregando apenas entradas do Firebase...');
-              await loadDataFromFirebase(false, true);
-            }
-          } else {
-            console.log(`✅ ${syncStatus.reason} - Usando dados locais`);
-          }
-        } catch (error) {
-          console.warn('⚠️ Erro na verificação de sincronização:', error);
-          console.log('📱 Usando dados locais como fallback');
-        }
+        // DESABILITADO temporariamente para evitar loops
+        console.log('✅ Sincronização automática desabilitada temporariamente');
       } else {
         setSyncStatus('error');
       }
@@ -178,6 +129,7 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
       setSyncStatus('error');
     } finally {
       setIsLoading(false);
+      onLoadingChange?.(false);
     }
   };
 

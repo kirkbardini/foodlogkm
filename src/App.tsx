@@ -8,6 +8,7 @@ import { FoodsManager } from './components/FoodsManager';
 import { AddWaterModal } from './components/AddWaterModal';
 import { ReportsDashboard } from './components/reports/ReportsDashboard';
 import { FirebaseSync } from './components/FirebaseSync';
+import { LoadingModal } from './components/LoadingModal';
 import { Entry } from './types';
 
 function App() {
@@ -15,7 +16,6 @@ function App() {
     initializeApp, 
     isLoading, 
     error, 
-    addEntry, 
     updateEntry, 
     deleteEntry
   } = useAppStore();
@@ -25,6 +25,7 @@ function App() {
   const [showReports, setShowReports] = useState(false);
   const [showAddWater, setShowAddWater] = useState(false);
   const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
+  const [isFirebaseLoading, setIsFirebaseLoading] = useState(false);
 
   useEffect(() => {
     initializeApp();
@@ -66,14 +67,6 @@ function App() {
     setShowAddModal(true);
   };
 
-  const handleDuplicateEntry = (entry: Entry) => {
-    const duplicatedEntry = {
-      ...entry,
-      id: Date.now().toString(36) + Math.random().toString(36).substr(2),
-      note: entry.note ? `${entry.note} (cópia)` : 'Cópia'
-    };
-    addEntry(duplicatedEntry);
-  };
 
   const handleDeleteEntry = async (id: string) => {
     await deleteEntry(id);
@@ -90,6 +83,11 @@ function App() {
     setShowReports(false);
     setShowAddWater(false);
     setEditingEntry(null);
+  };
+
+  // Função para controlar o loading do Firebase
+  const handleFirebaseLoading = (loading: boolean) => {
+    setIsFirebaseLoading(loading);
   };
 
   if (isLoading) {
@@ -124,7 +122,6 @@ function App() {
         <div className="mt-8">
           <DailyEntries
             onEdit={handleEditEntry}
-            onDuplicate={handleDuplicateEntry}
             onDelete={handleDeleteEntry}
           />
         </div>
@@ -153,7 +150,12 @@ function App() {
         onClose={handleCloseModals}
       />
 
-      <FirebaseSync />
+      <FirebaseSync onLoadingChange={handleFirebaseLoading} />
+
+      <LoadingModal
+        isOpen={isFirebaseLoading}
+        message="Sincronizando dados do Firebase..."
+      />
 
       <Toaster position="top-right" />
     </div>

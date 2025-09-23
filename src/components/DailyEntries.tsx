@@ -7,7 +7,6 @@ import { formatNumber } from '../lib/calculations';
 
 interface DailyEntriesProps {
   onEdit: (entry: Entry) => void;
-  onDuplicate: (entry: Entry) => void;
   onDelete: (id: string) => void;
 }
 
@@ -31,7 +30,6 @@ const mealOrder: MealType[] = ['cafe-da-manha', 'almoco', 'lanche', 'jantar', 'o
 
 export const DailyEntries: React.FC<DailyEntriesProps> = ({
   onEdit,
-  onDuplicate,
   onDelete
 }) => {
   const { currentUser, selectedDate, foods, getEntriesForDate } = useAppStore();
@@ -147,28 +145,20 @@ export const DailyEntries: React.FC<DailyEntriesProps> = ({
                   )}
                 </div>
                 
-                <div className="flex space-x-2 ml-4">
+                <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-2 ml-2 sm:ml-4">
                   <Button
                     onClick={() => onEdit(entry)}
                     variant="secondary"
                     size="sm"
-                    className="text-xs"
+                    className="text-xs px-2 py-1 min-w-0"
                   >
                     ✏️
-                  </Button>
-                  <Button
-                    onClick={() => onDuplicate(entry)}
-                    variant="secondary"
-                    size="sm"
-                    className="text-xs"
-                  >
-                    📋
                   </Button>
                   <Button
                     onClick={() => setDeleteConfirm(entry.id)}
                     variant="secondary"
                     size="sm"
-                    className="text-xs text-red-600 hover:text-red-700"
+                    className="text-xs px-2 py-1 min-w-0 text-red-600 hover:text-red-700"
                   >
                     🗑️
                   </Button>
@@ -244,28 +234,20 @@ export const DailyEntries: React.FC<DailyEntriesProps> = ({
                     )}
                   </div>
                   
-                  <div className="flex space-x-2 ml-4">
+                  <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-2 ml-2 sm:ml-4">
                     <Button
                       onClick={() => onEdit(entry)}
                       variant="secondary"
                       size="sm"
-                      className="text-xs"
+                      className="text-xs px-2 py-1 min-w-0"
                     >
                       ✏️
-                    </Button>
-                    <Button
-                      onClick={() => onDuplicate(entry)}
-                      variant="secondary"
-                      size="sm"
-                      className="text-xs"
-                    >
-                      📋
                     </Button>
                     <Button
                       onClick={() => setDeleteConfirm(entry.id)}
                       variant="secondary"
                       size="sm"
-                      className="text-xs text-red-600 hover:text-red-700"
+                      className="text-xs px-2 py-1 min-w-0 text-red-600 hover:text-red-700"
                     >
                       🗑️
                     </Button>

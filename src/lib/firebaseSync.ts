@@ -467,6 +467,29 @@ class FirebaseSyncService {
     return unsubscribe;
   }
 
+  onFoodsChange(callback: (foods: FoodItem[]) => void): () => void {
+    const foodsQuery = query(collection(db, 'foods'), orderBy('name'));
+    const unsubscribe = onSnapshot(foodsQuery, (snapshot) => {
+      const foods: FoodItem[] = [];
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        foods.push({
+          id: data.id,
+          name: data.name,
+          category: data.category,
+          per: data.per || 100,
+          protein_g: data.protein_g || 0,
+          carbs_g: data.carbs_g || 0,
+          fat_g: data.fat_g || 0,
+          kcal: data.kcal || 0,
+          density_g_per_ml: data.density_g_per_ml
+        } as FoodItem);
+      });
+      callback(foods);
+    });
+    return unsubscribe;
+  }
+
   // Load all data
   async loadAllUsersData(): Promise<{ entries: Entry[]; foods: FoodItem[]; users: UserPrefs[] }> {
     const [entries, foods, users] = await Promise.all([

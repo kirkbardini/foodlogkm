@@ -3,7 +3,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { Card } from '../ui/Card';
 import { ProgressBar } from '../ui/ProgressBar';
 import { formatNumber } from '../../lib/calculations';
-import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 interface DailyReportProps {
   date: string;
@@ -42,15 +42,6 @@ export const DailyReport: React.FC<DailyReportProps> = ({ date }) => {
     { name: 'Gorduras', value: dayTotals.fat_g, color: '#F59E0B' }
   ];
 
-  const hourlyData = Array.from({ length: 24 }, (_, hour) => {
-    // Simular distribuição por hora (em uma implementação real, você teria timestamps)
-    const hourTotals = Math.random() * 200; // Simulação
-    
-    return {
-      hour: `${hour.toString().padStart(2, '0')}:00`,
-      kcal: hourTotals
-    };
-  });
 
   return (
     <div className="space-y-6">
@@ -154,7 +145,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({ date }) => {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
         {/* Macro Distribution */}
         <Card>
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Distribuição de Macronutrientes</h3>
@@ -190,98 +181,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({ date }) => {
             ))}
           </div>
         </Card>
-
-        {/* Hourly Calories */}
-        <Card>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Calorias por Hora</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={hourlyData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="hour" 
-                  tick={{ fontSize: 12 }}
-                  interval={2}
-                />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip 
-                  formatter={(value) => [`${value} kcal`, 'Calorias']}
-                  labelFormatter={(label) => `Hora: ${label}`}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="kcal" 
-                  stroke="#3B82F6" 
-                  strokeWidth={2}
-                  dot={{ fill: '#3B82F6', strokeWidth: 2, r: 4 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
       </div>
-
-      {/* Summary */}
-      <Card>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Resumo do Dia</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h4 className="font-medium text-gray-900 mb-2">Macronutrientes</h4>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Proteínas:</span>
-                <span className="font-medium">
-                  {formatNumber(dayTotals.protein_g)}g / {dailyGoal.protein_g}g
-                  <span className="text-sm text-gray-500 ml-1">
-                    ({dailyGoal.protein_g > 0 ? Math.round((dayTotals.protein_g / dailyGoal.protein_g) * 100) : 0}%)
-                  </span>
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Carboidratos:</span>
-                <span className="font-medium">
-                  {formatNumber(dayTotals.carbs_g)}g / {dailyGoal.carbs_g}g
-                  <span className="text-sm text-gray-500 ml-1">
-                    ({dailyGoal.carbs_g > 0 ? Math.round((dayTotals.carbs_g / dailyGoal.carbs_g) * 100) : 0}%)
-                  </span>
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Gorduras:</span>
-                <span className="font-medium">
-                  {formatNumber(dayTotals.fat_g)}g / {dailyGoal.fat_g}g
-                  <span className="text-sm text-gray-500 ml-1">
-                    ({dailyGoal.fat_g > 0 ? Math.round((dayTotals.fat_g / dailyGoal.fat_g) * 100) : 0}%)
-                  </span>
-                </span>
-              </div>
-            </div>
-          </div>
-          <div>
-            <h4 className="font-medium text-gray-900 mb-2">Outros</h4>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Calorias:</span>
-                <span className="font-medium">
-                  {formatNumber(dayTotals.kcal)} / {dailyGoal.kcal}
-                  <span className="text-sm text-gray-500 ml-1">
-                    ({Math.round((dayTotals.kcal / dailyGoal.kcal) * 100)}%)
-                  </span>
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Água:</span>
-                <span className="font-medium">
-                  {formatNumber(dayTotals.water_ml)}ml / {dailyGoal.water_ml}ml
-                  <span className="text-sm text-gray-500 ml-1">
-                    ({dailyGoal.water_ml > 0 ? Math.round((dayTotals.water_ml / dailyGoal.water_ml) * 100) : 0}%)
-                  </span>
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Card>
     </div>
   );
 };
