@@ -83,3 +83,4 @@ A aplicação é uma PWA (Progressive Web App) e pode ser instalada no dispositi
 ## 📄 Licença
 
 Este projeto é privado e desenvolvido para uso pessoal.
+# Force rebuild
