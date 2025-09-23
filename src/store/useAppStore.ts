@@ -158,7 +158,7 @@ export const useAppStore = create<AppState>()(
           // Se não há alimentos, carrega a base inicial
           if (foods.length === 0) {
             try {
-              const response = await fetch('/calories/data/foods.min.json');
+              const response = await fetch('/foodlogkm/data/foods.min.json');
               if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
               }
