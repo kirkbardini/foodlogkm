@@ -69,6 +69,8 @@ class FirebaseSyncService {
 
   // Foods
   async saveFood(food: FoodItem): Promise<void> {
+    const now = Date.now();
+    
     // Filtrar valores undefined antes de enviar para o Firebase
     const foodData: any = {
       id: food.id,
@@ -79,7 +81,8 @@ class FirebaseSyncService {
       carbs_g: food.carbs_g,
       fat_g: food.fat_g,
       kcal: food.kcal,
-      updatedAt: serverTimestamp()
+      updatedAt: now,
+      createdAt: food.createdAt || now
     };
 
     // Adicionar campos opcionais apenas se não forem undefined
@@ -239,7 +242,9 @@ class FirebaseSyncService {
         carbs_g: data.carbs_g || 0,
         fat_g: data.fat_g || 0,
         kcal: data.kcal || 0,
-        density_g_per_ml: data.density_g_per_ml
+        density_g_per_ml: data.density_g_per_ml,
+        updatedAt: data.updatedAt || Date.now(),
+        createdAt: data.createdAt || Date.now()
       } as FoodItem;
       
       console.log(`🍎 Alimento carregado: ${food.name} (per: ${food.per}, protein: ${food.protein_g})`);
@@ -482,7 +487,9 @@ class FirebaseSyncService {
           carbs_g: data.carbs_g || 0,
           fat_g: data.fat_g || 0,
           kcal: data.kcal || 0,
-          density_g_per_ml: data.density_g_per_ml
+          density_g_per_ml: data.density_g_per_ml,
+          updatedAt: data.updatedAt || Date.now(),
+          createdAt: data.createdAt || Date.now()
         } as FoodItem);
       });
       callback(foods);

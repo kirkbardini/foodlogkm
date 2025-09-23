@@ -13,6 +13,8 @@ export interface FoodItem {
   fat_g: number;
   kcal: number;
   density_g_per_ml?: number; // para conversão ml <-> g
+  updatedAt?: number;        // timestamp da última atualização
+  createdAt?: number;         // timestamp da criação
 }
 
 export interface Entry {

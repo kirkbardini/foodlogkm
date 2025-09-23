@@ -194,22 +194,35 @@ export const useAppStore = create<AppState>()(
               const { foods: firebaseFoods, users: firebaseUsers } = await firebaseSyncService.loadAllUsersData();
               console.log(`📦 Encontrados ${firebaseFoods.length} alimentos e ${firebaseUsers.length} usuários no Firebase`);
               
-              // Adicionar/atualizar alimentos do Firebase no IndexedDB (cache local)
-              for (const food of firebaseFoods) {
+              // Sincronização inteligente com timestamp comparison
+              for (const firebaseFood of firebaseFoods) {
                 try {
-                  // Verificar se alimento já existe
-                  const existingFood = await database.getFood(food.id);
+                  const existingFood = await database.getFood(firebaseFood.id);
+                  
                   if (existingFood) {
-                    // Atualizar se já existe
-                    await database.updateFood(food);
-                    console.log(`🔄 Alimento atualizado do Firebase: ${food.name}`);
+                    // Comparar timestamps
+                    const localUpdatedAt = existingFood.updatedAt || 0;
+                    const firebaseUpdatedAt = firebaseFood.updatedAt || 0;
+                    
+                    if (firebaseUpdatedAt > localUpdatedAt) {
+                      // Firebase é mais recente - atualizar local
+                      await database.updateFood(firebaseFood);
+                      console.log(`🔄 Alimento atualizado do Firebase (${new Date(firebaseUpdatedAt).toLocaleString()}): ${firebaseFood.name}`);
+                    } else if (localUpdatedAt > firebaseUpdatedAt) {
+                      // Local é mais recente - atualizar Firebase
+                      await firebaseSyncService.saveFood(existingFood);
+                      console.log(`📤 Alimento local enviado para Firebase: ${existingFood.name}`);
+                    } else {
+                      // Mesmo timestamp - sem mudanças
+                      console.log(`✅ Alimento já sincronizado: ${firebaseFood.name}`);
+                    }
                   } else {
-                    // Adicionar se não existe
-                    await database.addFood(food);
-                    console.log(`✅ Alimento adicionado do Firebase: ${food.name}`);
+                    // Alimento não existe localmente - adicionar
+                    await database.addFood(firebaseFood);
+                    console.log(`✅ Alimento adicionado do Firebase: ${firebaseFood.name}`);
                   }
                 } catch (error) {
-                  console.warn(`⚠️ Erro ao sincronizar alimento ${food.name}:`, error);
+                  console.warn(`⚠️ Erro ao sincronizar alimento ${firebaseFood.name}:`, error);
                 }
               }
               
@@ -287,30 +300,38 @@ export const useAppStore = create<AppState>()(
       setError: (error) => set({ error }),
 
       // Ações de alimentos
-      addFood: async (foodData) => {
-        const food: FoodItem = {
-          ...foodData,
-          id: generateId()
-        };
-        
-        console.log(`🍎 Adicionando alimento local: ${food.name} (${food.id})`);
-        await database.addFood(food);
-        set(state => ({ foods: [...state.foods, food] }));
-        console.log(`✅ Alimento salvo localmente: ${food.name}`);
-        
-        // Sincronização automática com Firebase (GRADUAL - alimentos)
-        await syncToFirebase(() => firebaseSyncService.saveFood(food), `alimento ${food.name}`);
-      },
+          addFood: async (foodData) => {
+            const now = Date.now();
+            const food: FoodItem = {
+              ...foodData,
+              id: generateId(),
+              createdAt: now,
+              updatedAt: now
+            };
+            
+            console.log(`🍎 Adicionando alimento local: ${food.name} (${food.id})`);
+            await database.addFood(food);
+            set(state => ({ foods: [...state.foods, food] }));
+            console.log(`✅ Alimento salvo localmente: ${food.name}`);
+            
+            // Sincronização automática com Firebase (GRADUAL - alimentos)
+            await syncToFirebase(() => firebaseSyncService.saveFood(food), `alimento ${food.name}`);
+          },
 
-      updateFood: async (food) => {
-        await database.updateFood(food);
-        set(state => ({
-          foods: state.foods.map(f => f.id === food.id ? food : f)
-        }));
-        
-        // Sincronização automática com Firebase (GRADUAL - alimentos)
-        await syncToFirebase(() => firebaseSyncService.saveFood(food), `alimento ${food.name}`);
-      },
+          updateFood: async (food) => {
+            const updatedFood = {
+              ...food,
+              updatedAt: Date.now()
+            };
+            
+            await database.updateFood(updatedFood);
+            set(state => ({
+              foods: state.foods.map(f => f.id === food.id ? updatedFood : f)
+            }));
+            
+            // Sincronização automática com Firebase (GRADUAL - alimentos)
+            await syncToFirebase(() => firebaseSyncService.saveFood(updatedFood), `alimento ${updatedFood.name}`);
+          },
 
       deleteFood: async (id) => {
         await database.deleteFood(id);
