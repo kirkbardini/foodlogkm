@@ -115,7 +115,6 @@ class FirebaseSyncService {
       
       // Verificar se já existe pelo ID
       if (existingFoodIds.has(food.id)) {
-        console.log(`🔄 Atualizando alimento existente: ${food.name}`);
         await this.saveFood(food);
         updateCount++;
         continue;
@@ -123,13 +122,11 @@ class FirebaseSyncService {
       
       // Verificar se já existe pelo nome (case insensitive)
       if (existingFoodNames.has(food.name.toLowerCase())) {
-        console.log(`⏭️ Pulando alimento duplicado por nome: ${food.name}`);
         skipCount++;
         continue;
       }
       
       // Novo alimento
-      console.log(`➕ Adicionando novo alimento: ${food.name}`);
       await this.saveFood(food);
       newCount++;
       
@@ -138,7 +135,7 @@ class FirebaseSyncService {
       existingFoodNames.add(food.name.toLowerCase());
     }
     
-    console.log(`✅ Sincronização de alimentos concluída: ${newCount} novos, ${updateCount} atualizados, ${skipCount} duplicados ignorados`);
+    console.log(`✅ Alimentos sincronizados: ${newCount} novos, ${updateCount} atualizados, ${skipCount} duplicados ignorados`);
   }
 
   // Contar alimentos no Firebase (query rápida)
@@ -229,7 +226,7 @@ class FirebaseSyncService {
     const foodsQuery = query(collection(db, 'foods'), orderBy('name'));
     const snapshot = await getDocs(foodsQuery);
     
-    console.log(`📦 Carregando ${snapshot.docs.length} alimentos do Firebase...`);
+    console.log(`📦 Carregando ${snapshot.docs.length} alimentos do Firebase`);
     
     const foods = snapshot.docs.map(doc => {
       const data = doc.data();
@@ -247,18 +244,16 @@ class FirebaseSyncService {
         createdAt: data.createdAt || Date.now()
       } as FoodItem;
       
-      console.log(`🍎 Alimento carregado: ${food.name} (per: ${food.per}, protein: ${food.protein_g})`);
       return food;
     });
     
-    console.log(`✅ ${foods.length} alimentos carregados do Firebase`);
+    console.log(`✅ ${foods.length} alimentos carregados`);
     return foods;
   }
 
   async deleteFood(id: string): Promise<void> {
-    console.log(`🗑️ Deletando alimento do Firebase: ${id}`);
     await deleteDoc(doc(db, 'foods', id));
-    console.log(`✅ Alimento deletado do Firebase: ${id}`);
+    console.log(`🗑️ Alimento deletado: ${id}`);
   }
 
   // Entries
@@ -309,14 +304,12 @@ class FirebaseSyncService {
       
       // Verificar se já existe pelo ID
       if (existingEntryIds.has(entry.id)) {
-        console.log(`🔄 Atualizando entrada existente: ${entry.id}`);
         await this.saveEntry(entry);
         updateCount++;
         continue;
       }
       
       // Nova entrada
-      console.log(`➕ Adicionando nova entrada: ${entry.id}`);
       await this.saveEntry(entry);
       newCount++;
       
@@ -324,7 +317,7 @@ class FirebaseSyncService {
       existingEntryIds.add(entry.id);
     }
     
-    console.log(`✅ Sincronização de entradas concluída: ${newCount} novas, ${updateCount} atualizadas, ${skipCount} inválidas ignoradas`);
+    console.log(`✅ Entradas sincronizadas: ${newCount} novas, ${updateCount} atualizadas, ${skipCount} inválidas ignoradas`);
   }
 
   async loadEntries(userId: string): Promise<Entry[]> {
@@ -380,9 +373,8 @@ class FirebaseSyncService {
   }
 
   async deleteEntry(id: string): Promise<void> {
-    console.log(`🗑️ Deletando entrada do Firebase: ${id}`);
     await deleteDoc(doc(db, 'entries', id));
-    console.log(`✅ Entrada deletada do Firebase: ${id}`);
+    console.log(`🗑️ Entrada deletada: ${id}`);
   }
 
   // Users
@@ -420,17 +412,15 @@ class FirebaseSyncService {
       };
       
       if (existingUserIds.has(user.id)) {
-        console.log(`🔄 Atualizando usuário existente: ${user.name}`);
         updateCount++;
       } else {
-        console.log(`➕ Adicionando novo usuário: ${user.name}`);
         newCount++;
       }
       
       await setDoc(doc(db, 'users', user.id), userData);
     }
     
-    console.log(`✅ Sincronização de usuários concluída: ${newCount} novos, ${updateCount} atualizados, ${skipCount} inválidos ignorados`);
+    console.log(`✅ Usuários sincronizados: ${newCount} novos, ${updateCount} atualizados, ${skipCount} inválidos ignorados`);
   }
 
   async loadUsers(): Promise<UserPrefs[]> {

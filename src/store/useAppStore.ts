@@ -233,6 +233,10 @@ export const useAppStore = create<AppState>()(
                 console.log('🔄 Sincronizando alimentos: Firebase → Local');
                 
                 // 1. Adicionar/atualizar alimentos do Firebase
+                let foodsUpdated = 0;
+                let foodsAdded = 0;
+                let foodsErrors = 0;
+                
                 for (const firebaseFood of firebaseFoods) {
                   try {
                     const existingFood = await database.getFood(firebaseFood.id);
@@ -241,15 +245,23 @@ export const useAppStore = create<AppState>()(
                       const firebaseUpdatedAt = firebaseFood.updatedAt || 0;
                       if (firebaseUpdatedAt > localUpdatedAt) {
                         await database.updateFood(firebaseFood);
-                        console.log(`🔄 Alimento atualizado do Firebase: ${firebaseFood.name}`);
+                        foodsUpdated++;
                       }
                     } else {
                       await database.addFood(firebaseFood);
-                      console.log(`✅ Alimento adicionado do Firebase: ${firebaseFood.name}`);
+                      foodsAdded++;
                     }
                   } catch (error) {
+                    foodsErrors++;
                     console.warn(`⚠️ Erro ao sincronizar alimento ${firebaseFood.name}:`, error);
                   }
+                }
+                
+                if (foodsUpdated > 0 || foodsAdded > 0) {
+                  console.log(`🍎 Alimentos sincronizados: ${foodsAdded} novos, ${foodsUpdated} atualizados`);
+                }
+                if (foodsErrors > 0) {
+                  console.warn(`⚠️ ${foodsErrors} erros ao sincronizar alimentos`);
                 }
                 
                 // 2. Deletar alimentos locais que não existem no Firebase
@@ -258,20 +270,20 @@ export const useAppStore = create<AppState>()(
                 const foodsToDelete = localFoods.filter(food => !firebaseFoodIds.has(food.id));
                 
                 if (foodsToDelete.length > 0) {
-                  console.log(`🗑️ Encontrados ${foodsToDelete.length} alimentos para deletar (não existem no Firebase):`);
                   for (const food of foodsToDelete) {
-                    console.log(`  - ${food.name} (${food.id})`);
                     await database.deleteFood(food.id);
                   }
-                  console.log(`✅ ${foodsToDelete.length} alimentos deletados localmente`);
-                } else {
-                  console.log('✅ Nenhum alimento local precisa ser deletado');
+                  console.log(`🗑️ ${foodsToDelete.length} alimentos deletados localmente (não existem no Firebase)`);
                 }
                 
                 // Sincronizar entradas (Firebase é a fonte da verdade)
                 console.log('🔄 Sincronizando entradas: Firebase → Local');
                 
                 // 1. Adicionar/atualizar entradas do Firebase
+                let entriesUpdated = 0;
+                let entriesAdded = 0;
+                let entriesErrors = 0;
+                
                 for (const firebaseEntry of firebaseEntries) {
                   try {
                     const existingEntry = await database.getEntry(firebaseEntry.id);
@@ -280,15 +292,23 @@ export const useAppStore = create<AppState>()(
                       const firebaseUpdatedAt = firebaseEntry.updatedAt || 0;
                       if (firebaseUpdatedAt > localUpdatedAt) {
                         await database.updateEntry(firebaseEntry);
-                        console.log(`🔄 Entrada atualizada do Firebase: ${firebaseEntry.foodId} (${firebaseEntry.dateISO})`);
+                        entriesUpdated++;
                       }
                     } else {
                       await database.addEntry(firebaseEntry);
-                      console.log(`✅ Entrada adicionada do Firebase: ${firebaseEntry.foodId} (${firebaseEntry.dateISO})`);
+                      entriesAdded++;
                     }
                   } catch (error) {
+                    entriesErrors++;
                     console.warn(`⚠️ Erro ao sincronizar entrada ${firebaseEntry.id}:`, error);
                   }
+                }
+                
+                if (entriesUpdated > 0 || entriesAdded > 0) {
+                  console.log(`📝 Entradas sincronizadas: ${entriesAdded} novas, ${entriesUpdated} atualizadas`);
+                }
+                if (entriesErrors > 0) {
+                  console.warn(`⚠️ ${entriesErrors} erros ao sincronizar entradas`);
                 }
                 
                 // 2. Deletar entradas locais que não existem no Firebase
@@ -297,21 +317,17 @@ export const useAppStore = create<AppState>()(
                 const entriesToDelete = localEntries.filter(entry => !firebaseEntryIds.has(entry.id));
                 
                 if (entriesToDelete.length > 0) {
-                  console.log(`🗑️ Encontradas ${entriesToDelete.length} entradas para deletar (não existem no Firebase):`);
                   for (const entry of entriesToDelete) {
-                    console.log(`  - ${entry.foodId} (${entry.dateISO}) - ${entry.id}`);
                     await database.deleteEntry(entry.id);
                   }
-                  console.log(`✅ ${entriesToDelete.length} entradas deletadas localmente`);
-                } else {
-                  console.log('✅ Nenhuma entrada local precisa ser deletada');
+                  console.log(`🗑️ ${entriesToDelete.length} entradas deletadas localmente (não existem no Firebase)`);
                 }
                 
                 // Atualizar usuários
                 for (const user of firebaseUsers) {
                   await database.updateUser(user);
-                  console.log(`👤 Usuário atualizado do Firebase: ${user.name}`);
                 }
+                console.log(`👤 ${firebaseUsers.length} usuários atualizados do Firebase`);
                 
                 // Recarregar dados atualizados
                 const updatedFoods = await database.getAllFoods();
@@ -475,9 +491,9 @@ export const useAppStore = create<AppState>()(
               updatedAt: now
             };
             
-            console.log(`🍎 Adicionando alimento local: ${food.name} (${food.id})`);
             await database.addFood(food);
             set(state => ({ foods: [...state.foods, food] }));
+            console.log(`🍎 Alimento adicionado: ${food.name}`);
             console.log(`✅ Alimento salvo localmente: ${food.name}`);
             
             // Sincronização automática com Firebase (GRADUAL - alimentos)
@@ -502,9 +518,8 @@ export const useAppStore = create<AppState>()(
       deleteFood: async (id) => {
         // Buscar dados do alimento antes de deletar
         const foodToDelete = get().foods.find(f => f.id === id);
-        console.log(`🗑️ Deletando alimento local: ${foodToDelete?.name} (${id})`);
-        
         await database.deleteFood(id);
+        console.log(`🗑️ Alimento deletado: ${foodToDelete?.name}`);
         set(state => ({
           foods: state.foods.filter(f => f.id !== id)
         }));
@@ -573,9 +588,9 @@ export const useAppStore = create<AppState>()(
           water_ml: entryData.water_ml || 0 // Garantir que water_ml nunca seja undefined
         };
         
-        console.log(`📝 Adicionando entrada local: ${entry.id} (${entry.foodId})`);
         await database.addEntry(entry);
         set(state => ({ entries: [...state.entries, entry] }));
+        console.log(`📝 Entrada adicionada: ${entry.foodId} (${entry.dateISO})`);
         console.log(`✅ Entrada salva localmente: ${entry.id}`);
         
         // Sincronização automática com Firebase (GRADUAL - entradas)
@@ -605,9 +620,8 @@ export const useAppStore = create<AppState>()(
       deleteEntry: async (id) => {
         // ✅ Buscar entry ANTES de deletar para manter informações completas
         const entry = get().entries.find(e => e.id === id);
-        console.log(`🗑️ Deletando entrada local: ${entry?.foodId} (${entry?.dateISO}) - ${id}`);
-        
         await database.deleteEntry(id);
+        console.log(`🗑️ Entrada deletada: ${entry?.foodId} (${entry?.dateISO})`);
         set(state => ({
           entries: state.entries.filter(e => e.id !== id)
         }));

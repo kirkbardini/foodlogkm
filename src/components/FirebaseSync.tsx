@@ -148,13 +148,10 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
       if (needsFoods === undefined || needsEntries === undefined) {
         const { entries: firebaseEntries, foods: firebaseFoods, users: firebaseUsers } = await firebaseSyncService.loadAllUsersData();
         
-        console.log(`📊 Dados carregados do Firebase: ${firebaseEntries.length} entradas, ${firebaseFoods.length} alimentos, ${firebaseUsers.length} usuários`);
+        console.log(`📊 Dados carregados: ${firebaseEntries.length} entradas, ${firebaseFoods.length} alimentos, ${firebaseUsers.length} usuários`);
         
         // Atualiza alimentos locais com os do Firebase
-        console.log(`🔄 Sincronizando ${firebaseFoods.length} alimentos do Firebase...`);
-        
-        // Sincronização unidirecional: Firebase → Local (evitar duplicatas)
-        console.log('🔄 Sincronizando alimentos do Firebase para local...');
+        console.log(`🔄 Sincronizando ${firebaseFoods.length} alimentos...`);
         
         for (const firebaseFood of firebaseFoods) {
           try {
@@ -168,15 +165,10 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
               if (firebaseUpdatedAt > localUpdatedAt) {
                 // Firebase é mais recente - atualizar local
                 await updateFood(firebaseFood);
-                console.log(`🔄 Alimento atualizado do Firebase: ${firebaseFood.name}`);
-              } else {
-                // Local é mais recente ou igual - manter local
-                console.log(`✅ Alimento local mais recente: ${firebaseFood.name}`);
               }
             } else {
               // Alimento não existe localmente - adicionar
               await addFood(firebaseFood);
-              console.log(`✅ Alimento adicionado do Firebase: ${firebaseFood.name}`);
             }
           } catch (error) {
             console.warn(`⚠️ Erro ao sincronizar alimento ${firebaseFood.name}:`, error);
@@ -185,23 +177,29 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
         
         // Atualiza entradas (merge com existentes) - permite edição de qualquer usuário
         const allEntries = await database.getAllEntries();
-        console.log(`📊 Entradas locais: ${allEntries.length}, Firebase: ${firebaseEntries.length}`);
+        console.log(`📊 Entradas: ${allEntries.length} locais, ${firebaseEntries.length} Firebase`);
         
         // Verifica quais entradas já existem localmente
         const existingEntryIds = new Set(allEntries.map(e => e.id));
+        let entriesUpdated = 0;
+        let entriesAdded = 0;
         
         // Adiciona/atualiza todas as entradas do Firebase no IndexedDB
         for (const entry of firebaseEntries) {
           if (existingEntryIds.has(entry.id)) {
             // Entrada já existe - atualiza
             await database.updateEntry(entry);
-            console.log(`🔄 Entrada atualizada: ${entry.id}`);
+            entriesUpdated++;
           } else {
             // Entrada não existe - adiciona nova
             await database.addEntry(entry);
             addEntryFromSync(entry);
-            console.log(`✅ Entrada adicionada: ${entry.id}`);
+            entriesAdded++;
           }
+        }
+        
+        if (entriesUpdated > 0 || entriesAdded > 0) {
+          console.log(`📝 Entradas sincronizadas: ${entriesAdded} novas, ${entriesUpdated} atualizadas`);
         }
         
         if (firebaseUsers.length > 0) {
@@ -236,14 +234,21 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
           const allFoods = await database.getAllFoods();
           const existingFoodIds = new Set(allFoods.map(f => f.id));
           
+          let foodsUpdated = 0;
+          let foodsAdded = 0;
+          
           for (const food of firebaseFoods) {
             if (existingFoodIds.has(food.id)) {
               await updateFood(food);
-              console.log(`🔄 Alimento atualizado: ${food.name}`);
+              foodsUpdated++;
             } else {
               await addFood(food);
-              console.log(`✅ Alimento adicionado: ${food.name}`);
+              foodsAdded++;
             }
+          }
+          
+          if (foodsUpdated > 0 || foodsAdded > 0) {
+            console.log(`🍎 Alimentos sincronizados: ${foodsAdded} novos, ${foodsUpdated} atualizados`);
           }
         }
         
@@ -258,15 +263,22 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
             const allEntries = await database.getAllEntries();
             const existingEntryIds = new Set(allEntries.map(e => e.id));
             
+            let entriesUpdated = 0;
+            let entriesAdded = 0;
+            
             for (const entry of firebaseEntries) {
               if (existingEntryIds.has(entry.id)) {
                 await database.updateEntry(entry);
-                console.log(`🔄 Entrada atualizada: ${entry.id}`);
+                entriesUpdated++;
               } else {
                 await database.addEntry(entry);
                 addEntryFromSync(entry);
-                console.log(`✅ Entrada adicionada: ${entry.id}`);
+                entriesAdded++;
               }
+            }
+            
+            if (entriesUpdated > 0 || entriesAdded > 0) {
+              console.log(`📝 Entradas sincronizadas: ${entriesAdded} novas, ${entriesUpdated} atualizadas`);
             }
           }
         }
@@ -287,28 +299,28 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
     
     try {
       // PRIMEIRO: Limpar duplicatas no IndexedDB antes de sincronizar
-      console.log('🧹 Limpando duplicatas locais antes da sincronização...');
+      console.log('🧹 Limpando duplicatas locais...');
       const { foodsRemoved, entriesRemoved } = await database.cleanDuplicatesBeforeSync();
       
       if (foodsRemoved > 0 || entriesRemoved > 0) {
-        console.log(`✅ Limpeza local concluída: ${foodsRemoved} alimentos e ${entriesRemoved} entradas duplicadas removidas`);
+        console.log(`✅ Limpeza concluída: ${foodsRemoved} alimentos e ${entriesRemoved} entradas duplicadas removidas`);
         // Recarregar dados após limpeza
         await loadInitialData();
       }
       
       // Sincroniza usuários (Firebase é a fonte da verdade, não sobrescreve)
       await firebaseSyncService.saveUsers(users);
-      console.log('✅ Usuários sincronizados com Firebase');
+      console.log('✅ Usuários sincronizados');
       
       // Sincroniza entradas
       const entries = await database.getAllEntries();
       await firebaseSyncService.saveEntries(entries);
-      console.log(`✅ ${entries.length} entradas sincronizadas com Firebase`);
+      console.log(`✅ ${entries.length} entradas sincronizadas`);
       
       // Sincroniza alimentos
       const foods = await database.getAllFoods();
       await firebaseSyncService.saveFoods(foods);
-      console.log(`✅ ${foods.length} alimentos sincronizados com Firebase`);
+      console.log(`✅ ${foods.length} alimentos sincronizados`);
       
       // Verificar se há alimentos que foram deletados localmente mas ainda existem no Firebase
       console.log('🔍 Verificando alimentos deletados localmente...');
@@ -317,15 +329,15 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
       const deletedFoods = firebaseFoods.filter(f => !localFoodIds.has(f.id));
       
       if (deletedFoods.length > 0) {
-        console.log(`🗑️ Encontrados ${deletedFoods.length} alimentos para deletar do Firebase:`, deletedFoods.map(f => f.name));
+        console.log(`🗑️ Deletando ${deletedFoods.length} alimentos do Firebase...`);
         for (const food of deletedFoods) {
           try {
             await firebaseSyncService.deleteFood(food.id);
-            console.log(`✅ Alimento deletado do Firebase: ${food.name}`);
           } catch (error) {
             console.error(`❌ Erro ao deletar alimento ${food.name}:`, error);
           }
         }
+        console.log(`✅ ${deletedFoods.length} alimentos deletados do Firebase`);
       } else {
         console.log('✅ Nenhum alimento deletado localmente encontrado');
       }
