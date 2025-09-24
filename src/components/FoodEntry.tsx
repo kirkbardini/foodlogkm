@@ -51,6 +51,7 @@ export const FoodEntry: React.FC<FoodEntryProps> = ({
     if (editingEntry) {
       const food = foods.find(f => f.id === editingEntry.foodId);
       setSelectedFood(food || null);
+      setSearchQuery(food?.name || ''); // Preencher campo de busca com nome do alimento
       setQty(editingEntry.qty.toString());
       setUnit(editingEntry.unit);
       setMealType(editingEntry.mealType);
