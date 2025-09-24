@@ -138,8 +138,8 @@ export const DailyReport: React.FC<DailyReportProps> = ({ date }) => {
                 <Tooltip 
                   formatter={(value) => {
                     const total = macroData.reduce((sum, item) => sum + item.value, 0);
-                    const percentage = total > 0 ? ((value as number) / total * 100).toFixed(1) : '0.0';
-                    return [`${value}g (${percentage}%)`, '']}
+                    const percentage = total > 0 ? Math.round((value as number) / total * 100) : 0;
+                    return [`${Math.round(value as number)}g (${percentage}%)`, '']}
                   }
                 />
               </PieChart>
@@ -148,7 +148,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({ date }) => {
           <div className="flex justify-center space-x-4 mt-4">
             {macroData.map((macro) => {
               const total = macroData.reduce((sum, item) => sum + item.value, 0);
-              const percentage = total > 0 ? (macro.value / total * 100).toFixed(1) : '0.0';
+              const percentage = total > 0 ? Math.round(macro.value / total * 100) : 0;
               return (
                 <div key={macro.name} className="flex items-center space-x-2">
                   <div
@@ -156,7 +156,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({ date }) => {
                     style={{ backgroundColor: macro.color }}
                   />
                   <span className="text-sm text-gray-600">
-                    {macro.name}: {macro.value}g ({percentage}%)
+                    {macro.name}: {Math.round(macro.value)}g ({percentage}%)
                   </span>
                 </div>
               );
