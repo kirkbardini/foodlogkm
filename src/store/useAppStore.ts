@@ -13,6 +13,30 @@ import {
 } from '../types';
 import { calculateTotals, generateId } from '../lib/calculations';
 
+// Sistema de temas para usuários
+export const userThemes = {
+  kirk: {
+    name: 'Kirk',
+    gradient: 'from-blue-600 via-purple-600 to-indigo-700',
+    bgGradient: 'bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700',
+    textColor: 'text-white',
+    accentColor: 'text-blue-300',
+    cardBg: 'bg-blue-50/90',
+    borderColor: 'border-blue-200',
+    subtleBg: 'bg-blue-50/60'
+  },
+  manu: {
+    name: 'Manu',
+    gradient: 'from-pink-500 via-rose-400 to-yellow-400',
+    bgGradient: 'bg-gradient-to-br from-pink-500 via-rose-400 to-yellow-400',
+    textColor: 'text-white',
+    accentColor: 'text-pink-300',
+    cardBg: 'bg-pink-50/90',
+    borderColor: 'border-pink-200',
+    subtleBg: 'bg-pink-50/60'
+  }
+} as const;
+
 interface AppState {
   // Estado da aplicação
   currentUser: UserId;
@@ -57,6 +81,9 @@ interface AppState {
   // Ações de consulta
   getEntriesForDate: (userId: UserId, date: string) => Entry[];
   getEntriesForDateRange: (userId: UserId, startDate: string, endDate: string) => Entry[];
+
+  // Sistema de temas
+  getCurrentUserTheme: () => typeof userThemes.kirk | typeof userThemes.manu;
 
   // Ações de usuários - updateUserGoals removida (deprecada)
 
@@ -594,13 +621,19 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      // Ações de consulta
-      getEntriesForDate: (userId, date) => {
-        const { entries } = get();
-        return entries.filter(entry => 
-          entry.userId === userId && entry.dateISO === date
-        );
-      },
+  // Ações de consulta
+  getEntriesForDate: (userId, date) => {
+    const { entries } = get();
+    return entries.filter(entry => 
+      entry.userId === userId && entry.dateISO === date
+    );
+  },
+
+  // Sistema de temas
+  getCurrentUserTheme: () => {
+    const { currentUser } = get();
+    return userThemes[currentUser] || userThemes.kirk;
+  },
 
       getEntriesForDateRange: (userId, startDate, endDate) => {
         const { entries } = get();

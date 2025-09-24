@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAppStore } from '../store/useAppStore';
+import { useAppStore, userThemes } from '../store/useAppStore';
 import { Card } from './ui/Card';
 
 export const Dashboard: React.FC = () => {
@@ -9,7 +9,7 @@ export const Dashboard: React.FC = () => {
     users,
     setCurrentUser,
     setSelectedDate,
-    getDailyTotals
+    getDailyTotals,
   } = useAppStore();
 
   // Filtrar apenas usuários Kirk e Manu
@@ -40,19 +40,22 @@ export const Dashboard: React.FC = () => {
         
         {/* User Toggle */}
         <div className="flex bg-gray-100 rounded-lg p-1">
-          {filteredUsers.map((user) => (
-            <button
-              key={user.id}
-              onClick={() => setCurrentUser(user.id)}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                currentUser === user.id
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              {user.name}
-            </button>
-          ))}
+          {filteredUsers.map((user) => {
+            const theme = userThemes[user.id as keyof typeof userThemes];
+            return (
+              <button
+                key={user.id}
+                onClick={() => setCurrentUser(user.id)}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 ${
+                  currentUser === user.id
+                    ? `${theme.bgGradient} ${theme.textColor} shadow-lg transform scale-105`
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                }`}
+              >
+                {user.name}
+              </button>
+            );
+          })}
         </div>
       </div>
 
