@@ -194,27 +194,25 @@ export const useAppStore = create<AppState>()(
               const { foods: firebaseFoods, users: firebaseUsers } = await firebaseSyncService.loadAllUsersData();
               console.log(`📦 Encontrados ${firebaseFoods.length} alimentos e ${firebaseUsers.length} usuários no Firebase`);
               
-              // Sincronização inteligente com timestamp comparison
+              // Sincronização unidirecional: Firebase → Local (evitar duplicatas)
+              console.log('🔄 Sincronizando alimentos do Firebase para local...');
+              
               for (const firebaseFood of firebaseFoods) {
                 try {
                   const existingFood = await database.getFood(firebaseFood.id);
                   
                   if (existingFood) {
-                    // Comparar timestamps
+                    // Alimento já existe localmente - verificar se precisa atualizar
                     const localUpdatedAt = existingFood.updatedAt || 0;
                     const firebaseUpdatedAt = firebaseFood.updatedAt || 0;
                     
                     if (firebaseUpdatedAt > localUpdatedAt) {
                       // Firebase é mais recente - atualizar local
                       await database.updateFood(firebaseFood);
-                      console.log(`🔄 Alimento atualizado do Firebase (${new Date(firebaseUpdatedAt).toLocaleString()}): ${firebaseFood.name}`);
-                    } else if (localUpdatedAt > firebaseUpdatedAt) {
-                      // Local é mais recente - atualizar Firebase
-                      await firebaseSyncService.saveFood(existingFood);
-                      console.log(`📤 Alimento local enviado para Firebase: ${existingFood.name}`);
+                      console.log(`🔄 Alimento atualizado do Firebase: ${firebaseFood.name}`);
                     } else {
-                      // Mesmo timestamp - sem mudanças
-                      console.log(`✅ Alimento já sincronizado: ${firebaseFood.name}`);
+                      // Local é mais recente ou igual - manter local
+                      console.log(`✅ Alimento local mais recente: ${firebaseFood.name}`);
                     }
                   } else {
                     // Alimento não existe localmente - adicionar
@@ -225,6 +223,9 @@ export const useAppStore = create<AppState>()(
                   console.warn(`⚠️ Erro ao sincronizar alimento ${firebaseFood.name}:`, error);
                 }
               }
+              
+              // NÃO enviar alimentos locais para o Firebase para evitar duplicatas
+              console.log('📱 Sincronização unidirecional concluída - Firebase é a fonte da verdade');
               
               // Atualizar usuários do Firebase (metas)
               for (const user of firebaseUsers) {
