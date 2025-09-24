@@ -229,6 +229,13 @@ export const useAppStore = create<AppState>()(
                                     firebaseFoods.length !== localFoods.length ||
                                     firebaseUsers.length !== localUsers.length;
               
+              // Sempre atualizar usuários (metas) do Firebase
+              console.log('🔄 Atualizando metas de usuários do Firebase...');
+              for (const user of firebaseUsers) {
+                await database.updateUser(user);
+              }
+              console.log(`👤 ${firebaseUsers.length} usuários atualizados do Firebase`);
+              
               if (hasDifferences) {
                 console.log('🔄 Diferenças detectadas entre local e Firebase, sincronizando...');
                 
@@ -326,11 +333,7 @@ export const useAppStore = create<AppState>()(
                   console.log(`🗑️ ${entriesToDelete.length} entradas deletadas localmente (não existem no Firebase)`);
                 }
                 
-                // Atualizar usuários
-                for (const user of firebaseUsers) {
-                  await database.updateUser(user);
-                }
-                console.log(`👤 ${firebaseUsers.length} usuários atualizados do Firebase`);
+                // Usuários já foram atualizados acima
                 
                 // Recarregar dados atualizados
                 const updatedFoods = await database.getAllFoods();
