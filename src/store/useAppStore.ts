@@ -305,8 +305,8 @@ export const useAppStore = create<AppState>()(
             const now = Date.now();
             const food: FoodItem = {
               ...foodData,
-              id: generateId(),
-              createdAt: now,
+              id: (foodData as any).id || generateId(), // Preservar ID existente ou gerar novo
+              createdAt: (foodData as any).createdAt || now,
               updatedAt: now
             };
             
