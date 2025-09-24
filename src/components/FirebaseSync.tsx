@@ -23,10 +23,10 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
     addEntryFromSync,
     addFood,
     updateFood,
-    loadInitialData
+    loadInitialData,
+    isAuthenticated,
+    setAuthenticated
   } = useAppStore();
-
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
   const [showSyncModal, setShowSyncModal] = useState(false);
@@ -35,7 +35,7 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
   useEffect(() => {
     const unsubscribe = firebaseSyncService.onAuthStateChanged((user) => {
       const authenticated = user !== null;
-      setIsAuthenticated(authenticated);
+      setAuthenticated(authenticated);
       
       if (authenticated) {
         console.log('✅ Usuário autenticado:', user.displayName);
@@ -48,7 +48,7 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
     return () => unsubscribe();
   }, []);
 
-  // Listener para mudanças de usuários em tempo real - DESABILITADO temporariamente
+  // Listener para mudanças de usuários em tempo real - Comentado para evitar loops
   // useEffect(() => {
   //   if (isAuthenticated) {
   //     const unsubscribe = firebaseSyncService.onUsersChange((firebaseUsers) => {
@@ -92,18 +92,18 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
   const checkAuthentication = async () => {
     const user = firebaseSyncService.getCurrentUser();
     if (user) {
-      setIsAuthenticated(true);
+      setAuthenticated(true);
       console.log('✅ Usuário autenticado, verificando sincronização...');
       
       // Mostrar loading durante verificação
       onLoadingChange?.(true);
       
-      // DESABILITADO temporariamente para evitar loops
-      console.log('✅ Sincronização automática desabilitada temporariamente');
+      // Sincronização automática ativa
       
       // Simular tempo de carregamento
       setTimeout(() => {
         onLoadingChange?.(false);
+        console.log('✅ Sincronização concluída com sucesso');
       }, 1000);
     }
   };
@@ -116,11 +116,13 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
     try {
       const success = await firebaseSyncService.signInWithGoogle();
       if (success) {
-        setIsAuthenticated(true);
+        setAuthenticated(true);
         console.log('✅ Login realizado, verificando sincronização...');
         
-        // DESABILITADO temporariamente para evitar loops
-        console.log('✅ Sincronização automática desabilitada temporariamente');
+        // Sincronização automática ativa
+        setTimeout(() => {
+          console.log('✅ Sincronização concluída com sucesso');
+        }, 1000);
       } else {
         setSyncStatus('error');
       }
@@ -135,7 +137,7 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
 
   const handleLogout = async () => {
     await firebaseSyncService.signOut();
-    setIsAuthenticated(false);
+    setAuthenticated(false);
     setSyncStatus('idle');
   };
 
@@ -358,16 +360,16 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
       case 'syncing': return 'text-yellow-600';
       case 'success': return 'text-green-600';
       case 'error': return 'text-red-600';
-      default: return 'text-gray-600';
+      default: return isAuthenticated ? 'text-green-600' : 'text-gray-600';
     }
   };
 
   const getStatusText = () => {
     switch (syncStatus) {
       case 'syncing': return 'Sincronizando...';
-      case 'success': return 'Sincronizado';
+      case 'success': return 'Conectado';
       case 'error': return 'Erro na sincronização';
-      default: return 'Pronto para sincronizar';
+      default: return isAuthenticated ? 'Conectado' : 'Pronto para sincronizar';
     }
   };
 

@@ -44,6 +44,7 @@ interface AppState {
   isLoading: boolean;
   error: string | null;
   isInitialized: boolean;
+  isAuthenticated: boolean;
 
   // Dados
   foods: FoodItem[];
@@ -60,6 +61,7 @@ interface AppState {
   setCurrentUser: (userId: UserId) => void;
   setSelectedDate: (date: string) => void;
   setUsers: (users: UserPrefs[]) => void;
+  setAuthenticated: (auth: boolean) => void;
   setError: (error: string | null) => void;
   
   // Listeners em tempo real
@@ -151,6 +153,7 @@ export const useAppStore = create<AppState>()(
       isLoading: false,
       error: null,
       isInitialized: false,
+      isAuthenticated: false,
       foods: [],
       entries: [],
       users: defaultUsers,
@@ -479,6 +482,7 @@ export const useAppStore = create<AppState>()(
       setCurrentUser: (userId) => set({ currentUser: userId }),
       setSelectedDate: (date) => set({ selectedDate: date }),
       setUsers: (users) => set({ users }),
+      setAuthenticated: (auth: boolean) => set({ isAuthenticated: auth }),
       setError: (error) => set({ error }),
 
       // Ações de alimentos

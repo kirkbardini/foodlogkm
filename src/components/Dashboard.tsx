@@ -10,6 +10,7 @@ export const Dashboard: React.FC = () => {
     setCurrentUser,
     setSelectedDate,
     getDailyTotals,
+    isAuthenticated,
   } = useAppStore();
 
   // Filtrar apenas usuários Kirk e Manu
@@ -52,7 +53,21 @@ export const Dashboard: React.FC = () => {
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
                 }`}
               >
-                {user.name}
+                <div className="flex items-center space-x-2">
+                  <span>{user.name}</span>
+                  {currentUser === user.id && (
+                    <div className="flex items-center space-x-1">
+                      <div className={`w-2 h-2 rounded-full ${
+                        isAuthenticated ? 'bg-green-500' : 'bg-gray-400'
+                      }`} />
+                      <span className={`text-xs ${
+                        isAuthenticated ? 'text-green-600' : 'text-gray-500'
+                      }`}>
+                        {isAuthenticated ? '🟢 Conectado' : '⚪ Offline'}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </button>
             );
           })}
