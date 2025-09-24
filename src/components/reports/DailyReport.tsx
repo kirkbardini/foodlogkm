@@ -1,8 +1,9 @@
 import React from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { Card } from '../ui/Card';
-import { ProgressBar } from '../ui/ProgressBar';
-import { formatNumber } from '../../lib/calculations';
+import { CompactNutritionCard } from '../ui/CompactNutritionCard';
+import { InsightsPanel } from './InsightsPanel';
+import { MealDistributionChart } from './MealDistributionChart';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 interface DailyReportProps {
@@ -51,98 +52,67 @@ export const DailyReport: React.FC<DailyReportProps> = ({ date }) => {
         <p className="text-gray-600">{formatDateBR(date)}</p>
       </div>
 
-      {/* Main Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      {/* Main Metrics with Compact Nutrition Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         {/* Protein */}
-        <Card>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600 mb-2">
-              {formatNumber(dayTotals.protein_g)}g
-            </div>
-            <div className="text-sm text-gray-600 mb-3">Proteínas</div>
-            <ProgressBar
-              value={dayTotals.protein_g}
-              max={dailyGoal.protein_g}
-              color="blue"
-            />
-            <div className="text-xs text-gray-500 mt-1">
-              Meta: {dailyGoal.protein_g}g
-            </div>
-          </div>
-        </Card>
+        <CompactNutritionCard
+          value={dayTotals.protein_g}
+          max={dailyGoal.protein_g}
+          color="bg-blue-500"
+          label="Proteínas"
+          unit="g"
+          icon="🥩"
+        />
 
         {/* Carbs */}
-        <Card>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-green-600 mb-2">
-              {formatNumber(dayTotals.carbs_g)}g
-            </div>
-            <div className="text-sm text-gray-600 mb-3">Carboidratos</div>
-            <ProgressBar
-              value={dayTotals.carbs_g}
-              max={dailyGoal.carbs_g}
-              color="green"
-            />
-            <div className="text-xs text-gray-500 mt-1">
-              Meta: {dailyGoal.carbs_g}g
-            </div>
-          </div>
-        </Card>
+        <CompactNutritionCard
+          value={dayTotals.carbs_g}
+          max={dailyGoal.carbs_g}
+          color="bg-green-500"
+          label="Carboidratos"
+          unit="g"
+          icon="🍞"
+        />
 
         {/* Fat */}
-        <Card>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-yellow-600 mb-2">
-              {formatNumber(dayTotals.fat_g)}g
-            </div>
-            <div className="text-sm text-gray-600 mb-3">Gorduras</div>
-            <ProgressBar
-              value={dayTotals.fat_g}
-              max={dailyGoal.fat_g}
-              color="yellow"
-            />
-            <div className="text-xs text-gray-500 mt-1">
-              Meta: {dailyGoal.fat_g}g
-            </div>
-          </div>
-        </Card>
+        <CompactNutritionCard
+          value={dayTotals.fat_g}
+          max={dailyGoal.fat_g}
+          color="bg-yellow-500"
+          label="Gorduras"
+          unit="g"
+          icon="🥑"
+        />
 
         {/* Calories */}
-        <Card>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-red-600 mb-2">
-              {formatNumber(dayTotals.kcal)}
-            </div>
-            <div className="text-sm text-gray-600 mb-3">Calorias</div>
-            <ProgressBar
-              value={dayTotals.kcal}
-              max={dailyGoal.kcal}
-              color="red"
-            />
-            <div className="text-xs text-gray-500 mt-1">
-              Meta: {dailyGoal.kcal}
-            </div>
-          </div>
-        </Card>
+        <CompactNutritionCard
+          value={dayTotals.kcal}
+          max={dailyGoal.kcal}
+          color="bg-red-500"
+          label="Calorias"
+          unit="kcal"
+          icon="🔥"
+        />
 
         {/* Water */}
-        <Card>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-cyan-600 mb-2">
-              {formatNumber(dayTotals.water_ml)}ml
-            </div>
-            <div className="text-sm text-gray-600 mb-3">Água</div>
-            <ProgressBar
-              value={dayTotals.water_ml}
-              max={dailyGoal.water_ml}
-              color="cyan"
-            />
-            <div className="text-xs text-gray-500 mt-1">
-              Meta: {dailyGoal.water_ml}ml
-            </div>
-          </div>
-        </Card>
+        <CompactNutritionCard
+          value={dayTotals.water_ml}
+          max={dailyGoal.water_ml}
+          color="bg-cyan-500"
+          label="Água"
+          unit="ml"
+          icon="💧"
+        />
       </div>
+
+      {/* Insights Panel */}
+      <InsightsPanel
+        currentTotals={dayTotals}
+        goals={dailyGoal}
+      />
+
+      {/* Meal Distribution Chart */}
+      <MealDistributionChart entries={entries} />
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
@@ -165,20 +135,32 @@ export const DailyReport: React.FC<DailyReportProps> = ({ date }) => {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => [`${value}g`, '']} />
+                <Tooltip 
+                  formatter={(value) => {
+                    const total = macroData.reduce((sum, item) => sum + item.value, 0);
+                    const percentage = total > 0 ? ((value as number) / total * 100).toFixed(1) : '0.0';
+                    return [`${value}g (${percentage}%)`, '']}
+                  }
+                />
               </PieChart>
             </ResponsiveContainer>
           </div>
           <div className="flex justify-center space-x-4 mt-4">
-            {macroData.map((macro) => (
-              <div key={macro.name} className="flex items-center space-x-2">
-                <div
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: macro.color }}
-                />
-                <span className="text-sm text-gray-600">{macro.name}</span>
-              </div>
-            ))}
+            {macroData.map((macro) => {
+              const total = macroData.reduce((sum, item) => sum + item.value, 0);
+              const percentage = total > 0 ? (macro.value / total * 100).toFixed(1) : '0.0';
+              return (
+                <div key={macro.name} className="flex items-center space-x-2">
+                  <div
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: macro.color }}
+                  />
+                  <span className="text-sm text-gray-600">
+                    {macro.name}: {macro.value}g ({percentage}%)
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </Card>
       </div>

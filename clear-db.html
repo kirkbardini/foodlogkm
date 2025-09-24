@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Limpar IndexedDB</title>
+</head>
+<body>
+    <h1>Limpar IndexedDB</h1>
+    <div style="margin: 20px 0;">
+        <button onclick="clearDB()" style="margin-right: 10px; padding: 10px 20px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            🗑️ Deletar Banco Completo
+        </button>
+        <button onclick="clearStores()" style="padding: 10px 20px; background: #ffc107; color: black; border: none; border-radius: 4px; cursor: pointer;">
+            🧹 Limpar Stores Existentes
+        </button>
+    </div>
+    <div id="result" style="margin-top: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #f8f9fa;"></div>
+
+    <script>
+        async function clearDB() {
+            try {
+                document.getElementById('result').innerHTML = '🔄 Limpando banco de dados...';
+                
+                // Primeiro, tentar deletar o banco inteiro
+                const deleteRequest = indexedDB.deleteDatabase('foodlog-km-db');
+                
+                deleteRequest.onsuccess = function() {
+                    document.getElementById('result').innerHTML = '✅ Banco de dados deletado com sucesso!';
+                    console.log('Banco de dados deletado');
+                };
+                
+                deleteRequest.onerror = function() {
+                    document.getElementById('result').innerHTML = '❌ Erro ao deletar banco de dados';
+                    console.error('Erro ao deletar banco');
+                };
+                
+                deleteRequest.onblocked = function() {
+                    document.getElementById('result').innerHTML = '⚠️ Banco de dados está em uso. Feche todas as abas da aplicação e tente novamente.';
+                    console.warn('Banco bloqueado');
+                };
+                
+            } catch (error) {
+                document.getElementById('result').innerHTML = '❌ Erro: ' + error.message;
+                console.error('Erro:', error);
+            }
+        }
+        
+        // Função alternativa para limpar apenas as stores existentes
+        async function clearStores() {
+            try {
+                document.getElementById('result').innerHTML = '🔄 Limpando stores...';
+                
+                const request = indexedDB.open('foodlog-km-db', 1);
+                
+                request.onsuccess = function(event) {
+                    const db = event.target.result;
+                    const storeNames = ['foods', 'entries', 'users'];
+                    const existingStores = [];
+                    
+                    // Verificar quais stores existem
+                    if (db.objectStoreNames.contains('foods')) existingStores.push('foods');
+                    if (db.objectStoreNames.contains('entries')) existingStores.push('entries');
+                    if (db.objectStoreNames.contains('users')) existingStores.push('users');
+                    
+                    if (existingStores.length === 0) {
+                        document.getElementById('result').innerHTML = 'ℹ️ Nenhuma store encontrada para limpar.';
+                        return;
+                    }
+                    
+                    // Criar transação apenas com stores existentes
+                    const transaction = db.transaction(existingStores, 'readwrite');
+                    
+                    // Limpar cada store existente
+                    existingStores.forEach(storeName => {
+                        const store = transaction.objectStore(storeName);
+                        store.clear();
+                    });
+                    
+                    transaction.oncomplete = function() {
+                        document.getElementById('result').innerHTML = `✅ ${existingStores.length} stores limpas com sucesso!`;
+                        console.log('Stores limpas:', existingStores);
+                    };
+                    
+                    transaction.onerror = function() {
+                        document.getElementById('result').innerHTML = '❌ Erro ao limpar stores';
+                        console.error('Erro ao limpar stores');
+                    };
+                };
+                
+                request.onerror = function() {
+                    document.getElementById('result').innerHTML = '❌ Erro ao abrir banco de dados';
+                    console.error('Erro ao abrir banco');
+                };
+                
+            } catch (error) {
+                document.getElementById('result').innerHTML = '❌ Erro: ' + error.message;
+                console.error('Erro:', error);
+            }
+        }
+    </script>
+</body>
+</html>

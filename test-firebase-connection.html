@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teste Conexão Firebase</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        .warning { background: #fff3cd; border-color: #ffeaa7; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        .danger { background: #dc3545; color: white; }
+        .info { background: #d1ecf1; border-color: #bee5eb; }
+    </style>
+</head>
+<body>
+    <h1>🔥 Teste Conexão Firebase</h1>
+    
+    <div class="section info">
+        <h3>📋 Informações do Projeto</h3>
+        <p><strong>Projeto:</strong> foodlog-km-4d4b1</p>
+        <p><strong>Status:</strong> Testando conexão...</p>
+    </div>
+    
+    <div class="section">
+        <h3>🧪 Testes</h3>
+        <button onclick="testConnection()" class="info">🔗 Testar Conexão</button>
+        <button onclick="testAuth()" class="info">🔐 Testar Autenticação</button>
+        <button onclick="testFirestore()" class="info">📊 Testar Firestore</button>
+        <button onclick="clearResults()" class="danger">🧹 Limpar Resultados</button>
+    </div>
+    
+    <div class="section">
+        <h3>📋 Resultados</h3>
+        <div id="results"></div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, collection, getDocs, addDoc, doc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Configuração Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyBMcdLEVtH4rRycm7cq1mXEuCmO1cwVe-U",
+            authDomain: "foodlog-km-4d4b1.firebaseapp.com",
+            projectId: "foodlog-km-4d4b1",
+            storageBucket: "foodlog-km-4d4b1.firebasestorage.app",
+            messagingSenderId: "308742404352",
+            appId: "1:308742404352:web:fd3d8d2177031d89d15be5"
+        };
+
+        // Inicializar Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+
+        // Configurar provider para emails específicos
+        provider.setCustomParameters({
+            hd: 'gmail.com'
+        });
+
+        window.testConnection = async function() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>🔄 Testando conexão Firebase...</p>';
+            
+            try {
+                // Teste básico de conexão
+                console.log('🔥 Firebase App:', app);
+                console.log('🔐 Auth:', auth);
+                console.log('📊 Firestore:', db);
+                
+                results.innerHTML = `
+                    <div class="success">
+                        <h4>✅ Conexão Firebase OK</h4>
+                        <p>App: ${app.name}</p>
+                        <p>Auth: Configurado</p>
+                        <p>Firestore: Configurado</p>
+                    </div>
+                `;
+            } catch (error) {
+                results.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Erro na Conexão</h4>
+                        <p>Erro: ${error.message}</p>
+                    </div>
+                `;
+            }
+        };
+
+        window.testAuth = async function() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>🔄 Testando autenticação...</p>';
+            
+            try {
+                const result = await signInWithPopup(auth, provider);
+                const user = result.user;
+                
+                results.innerHTML = `
+                    <div class="success">
+                        <h4>✅ Autenticação OK</h4>
+                        <p>Usuário: ${user.displayName}</p>
+                        <p>Email: ${user.email}</p>
+                        <p>UID: ${user.uid}</p>
+                    </div>
+                `;
+            } catch (error) {
+                results.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Erro na Autenticação</h4>
+                        <p>Erro: ${error.message}</p>
+                    </div>
+                `;
+            }
+        };
+
+        window.testFirestore = async function() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>🔄 Testando Firestore...</p>';
+            
+            try {
+                // Teste de leitura
+                const foodsRef = collection(db, 'foods');
+                const foodsSnapshot = await getDocs(foodsRef);
+                const foodsCount = foodsSnapshot.size;
+                
+                const entriesRef = collection(db, 'entries');
+                const entriesSnapshot = await getDocs(entriesRef);
+                const entriesCount = entriesSnapshot.size;
+                
+                const usersRef = collection(db, 'users');
+                const usersSnapshot = await getDocs(usersRef);
+                const usersCount = usersSnapshot.size;
+                
+                results.innerHTML = `
+                    <div class="success">
+                        <h4>✅ Firestore OK</h4>
+                        <p>Alimentos: ${foodsCount}</p>
+                        <p>Entradas: ${entriesCount}</p>
+                        <p>Usuários: ${usersCount}</p>
+                        <p><strong>Database está vazio - perfeito para começar!</strong></p>
+                    </div>
+                `;
+            } catch (error) {
+                results.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Erro no Firestore</h4>
+                        <p>Erro: ${error.message}</p>
+                    </div>
+                `;
+            }
+        };
+
+        window.clearResults = function() {
+            document.getElementById('results').innerHTML = '';
+        };
+
+        // Teste automático ao carregar
+        window.onload = function() {
+            testConnection();
+        };
+    </script>
+</body>
+</html>

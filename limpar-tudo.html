@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Limpar TUDO - FoodLog KM</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        .warning { background: #fff3cd; border-color: #ffeaa7; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        .danger { background: #dc3545; color: white; }
+    </style>
+</head>
+<body>
+    <h1>🧹 Limpar TUDO - FoodLog KM</h1>
+    
+    <div class="section warning">
+        <h3>⚠️ ATENÇÃO</h3>
+        <p>Este script vai deletar TODOS os dados locais e do Firebase!</p>
+        <p>Use apenas se quiser começar completamente do zero.</p>
+    </div>
+    
+    <div class="section">
+        <h3>🧹 Ações de Limpeza</h3>
+        <button onclick="clearEverything()" class="danger">🗑️ Limpar TUDO</button>
+        <button onclick="checkStatus()" class="warning">🔍 Verificar Status</button>
+    </div>
+    
+    <div class="section">
+        <h3>📋 Resultados</h3>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        async function clearEverything() {
+            const confirm = prompt('⚠️ ATENÇÃO: Isso vai deletar TODOS os dados!\n\nDigite "DELETE EVERYTHING" para confirmar:');
+            if (confirm !== 'DELETE EVERYTHING') {
+                alert('❌ Operação cancelada');
+                return;
+            }
+            
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>🗑️ Limpando TUDO...</p>';
+            
+            try {
+                // 1. Limpar IndexedDB
+                const deleteRequest = indexedDB.deleteDatabase('foodlog-km-db');
+                deleteRequest.onsuccess = function() {
+                    console.log('✅ IndexedDB deletado');
+                };
+                deleteRequest.onerror = function() {
+                    console.log('❌ Erro ao deletar IndexedDB');
+                };
+                
+                // 2. Limpar localStorage
+                localStorage.clear();
+                console.log('✅ localStorage limpo');
+                
+                // 3. Limpar sessionStorage
+                sessionStorage.clear();
+                console.log('✅ sessionStorage limpo');
+                
+                // 4. Limpar cache do navegador
+                if ('caches' in window) {
+                    caches.keys().then(function(names) {
+                        for (let name of names) {
+                            caches.delete(name);
+                        }
+                        console.log('✅ Cache limpo');
+                    });
+                }
+                
+                // 5. Limpar cookies relacionados
+                document.cookie.split(";").forEach(function(c) { 
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+                });
+                console.log('✅ Cookies limpos');
+                
+                results.innerHTML = '<div class="success">✅ TUDO foi limpo com sucesso!</div>';
+                
+                // Recarregar página após 2 segundos
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+                
+            } catch (error) {
+                results.innerHTML = `<div class="error">❌ Erro: ${error.message}</div>`;
+            }
+        }
+        
+        async function checkStatus() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>🔍 Verificando status...</p>';
+            
+            try {
+                // Verificar localStorage
+                const localKeys = Object.keys(localStorage);
+                const sessionKeys = Object.keys(sessionStorage);
+                
+                // Verificar IndexedDB
+                let dbStatus = 'Não existe';
+                const request = indexedDB.open('foodlog-km-db', 1);
+                request.onsuccess = function() {
+                    dbStatus = 'Existe';
+                };
+                request.onerror = function() {
+                    dbStatus = 'Não existe';
+                };
+                
+                // Verificar cache
+                let cacheStatus = 'Não disponível';
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    cacheStatus = `${cacheNames.length} caches encontrados`;
+                }
+                
+                results.innerHTML = `
+                    <div class="warning">
+                        <h4>📊 Status Atual:</h4>
+                        <p>📱 LocalStorage: ${localKeys.length} itens</p>
+                        <p>📱 SessionStorage: ${sessionKeys.length} itens</p>
+                        <p>🗄️ IndexedDB: ${dbStatus}</p>
+                        <p>💾 Cache: ${cacheStatus}</p>
+                        <p>🍪 Cookies: ${document.cookie.length} caracteres</p>
+                    </div>
+                `;
+                
+            } catch (error) {
+                results.innerHTML = `<div class="error">❌ Erro: ${error.message}</div>`;
+            }
+        }
+        
+        // Verificar status inicial
+        window.onload = function() {
+            checkStatus();
+        };
+    </script>
+</body>
+</html>

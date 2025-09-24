@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug IndexedDB</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        .info { background: #d1ecf1; border-color: #bee5eb; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        .danger { background: #dc3545; color: white; }
+        .warning { background: #ffc107; color: black; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug IndexedDB - FoodLog KM</h1>
+    
+    <div class="section info">
+        <h3>📊 Status Atual</h3>
+        <div id="status"></div>
+    </div>
+    
+    <div class="section">
+        <h3>🧹 Ações de Limpeza</h3>
+        <button onclick="checkDatabase()" class="warning">🔍 Verificar Banco</button>
+        <button onclick="clearAllData()" class="danger">🗑️ Limpar TUDO</button>
+        <button onclick="clearIndexedDB()" class="danger">🗑️ Limpar IndexedDB</button>
+        <button onclick="clearLocalStorage()" class="warning">🧹 Limpar LocalStorage</button>
+    </div>
+    
+    <div class="section">
+        <h3>📋 Resultados</h3>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        let db = null;
+        
+        async function checkDatabase() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>🔍 Verificando banco de dados...</p>';
+            
+            try {
+                // Verificar IndexedDB
+                const request = indexedDB.open('foodlog-km-db', 1);
+                
+                request.onsuccess = function(event) {
+                    db = event.target.result;
+                    const transaction = db.transaction(['foods', 'entries', 'users'], 'readonly');
+                    
+                    const foodsStore = transaction.objectStore('foods');
+                    const entriesStore = transaction.objectStore('entries');
+                    const usersStore = transaction.objectStore('users');
+                    
+                    // Contar registros
+                    const foodsCount = foodsStore.count();
+                    const entriesCount = entriesStore.count();
+                    const usersCount = usersStore.count();
+                    
+                    foodsCount.onsuccess = function() {
+                        entriesCount.onsuccess = function() {
+                            usersCount.onsuccess = function() {
+                                results.innerHTML = `
+                                    <div class="info">
+                                        <h4>📊 Dados no IndexedDB:</h4>
+                                        <p>🍎 Alimentos: ${foodsCount.result}</p>
+                                        <p>📝 Entradas: ${entriesCount.result}</p>
+                                        <p>👥 Usuários: ${usersCount.result}</p>
+                                    </div>
+                                `;
+                            };
+                        };
+                    };
+                };
+                
+                request.onerror = function() {
+                    results.innerHTML = '<div class="error">❌ Erro ao abrir IndexedDB</div>';
+                };
+                
+            } catch (error) {
+                results.innerHTML = `<div class="error">❌ Erro: ${error.message}</div>`;
+            }
+        }
+        
+        async function clearAllData() {
+            const confirm = prompt('⚠️ ATENÇÃO: Isso vai deletar TODOS os dados!\n\nDigite "DELETE ALL" para confirmar:');
+            if (confirm !== 'DELETE ALL') {
+                alert('❌ Operação cancelada');
+                return;
+            }
+            
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>🗑️ Limpando todos os dados...</p>';
+            
+            try {
+                // 1. Limpar IndexedDB
+                const deleteRequest = indexedDB.deleteDatabase('foodlog-km-db');
+                deleteRequest.onsuccess = function() {
+                    console.log('✅ IndexedDB deletado');
+                };
+                deleteRequest.onerror = function() {
+                    console.log('❌ Erro ao deletar IndexedDB');
+                };
+                
+                // 2. Limpar localStorage
+                localStorage.clear();
+                console.log('✅ localStorage limpo');
+                
+                // 3. Limpar sessionStorage
+                sessionStorage.clear();
+                console.log('✅ sessionStorage limpo');
+                
+                // 4. Limpar cache do navegador (se possível)
+                if ('caches' in window) {
+                    caches.keys().then(function(names) {
+                        for (let name of names) {
+                            caches.delete(name);
+                        }
+                        console.log('✅ Cache limpo');
+                    });
+                }
+                
+                results.innerHTML = '<div class="success">✅ Todos os dados foram limpos!</div>';
+                
+            } catch (error) {
+                results.innerHTML = `<div class="error">❌ Erro: ${error.message}</div>`;
+            }
+        }
+        
+        async function clearIndexedDB() {
+            const confirm = prompt('⚠️ Deletar IndexedDB?\n\nDigite "DELETE" para confirmar:');
+            if (confirm !== 'DELETE') {
+                alert('❌ Operação cancelada');
+                return;
+            }
+            
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>🗑️ Deletando IndexedDB...</p>';
+            
+            try {
+                const deleteRequest = indexedDB.deleteDatabase('foodlog-km-db');
+                
+                deleteRequest.onsuccess = function() {
+                    results.innerHTML = '<div class="success">✅ IndexedDB deletado com sucesso!</div>';
+                };
+                
+                deleteRequest.onerror = function() {
+                    results.innerHTML = '<div class="error">❌ Erro ao deletar IndexedDB</div>';
+                };
+                
+                deleteRequest.onblocked = function() {
+                    results.innerHTML = '<div class="error">⚠️ IndexedDB está em uso. Feche todas as abas da aplicação e tente novamente.</div>';
+                };
+                
+            } catch (error) {
+                results.innerHTML = `<div class="error">❌ Erro: ${error.message}</div>`;
+            }
+        }
+        
+        async function clearLocalStorage() {
+            const confirm = prompt('⚠️ Limpar LocalStorage?\n\nDigite "CLEAR" para confirmar:');
+            if (confirm !== 'CLEAR') {
+                alert('❌ Operação cancelada');
+                return;
+            }
+            
+            const results = document.getElementById('results');
+            
+            try {
+                localStorage.clear();
+                sessionStorage.clear();
+                results.innerHTML = '<div class="success">✅ LocalStorage e SessionStorage limpos!</div>';
+            } catch (error) {
+                results.innerHTML = `<div class="error">❌ Erro: ${error.message}</div>`;
+            }
+        }
+        
+        // Verificar status inicial
+        window.onload = function() {
+            const status = document.getElementById('status');
+            status.innerHTML = `
+                <p>🔍 Verificando status inicial...</p>
+                <p>📱 LocalStorage: ${localStorage.length} itens</p>
+                <p>📱 SessionStorage: ${sessionStorage.length} itens</p>
+                <p>🌐 IndexedDB: Verificando...</p>
+            `;
+            
+            // Verificar se IndexedDB existe
+            const request = indexedDB.open('foodlog-km-db', 1);
+            request.onsuccess = function() {
+                status.innerHTML += '<p>✅ IndexedDB existe</p>';
+            };
+            request.onerror = function() {
+                status.innerHTML += '<p>❌ IndexedDB não existe</p>';
+            };
+        };
+    </script>
+</body>
+</html>

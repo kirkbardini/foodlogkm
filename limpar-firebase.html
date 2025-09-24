@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Limpar Firebase</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        .warning { background: #fff3cd; border-color: #ffeaa7; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        .danger { background: #dc3545; color: white; }
+    </style>
+</head>
+<body>
+    <h1>🔥 Limpar Firebase</h1>
+    
+    <div class="section warning">
+        <h3>⚠️ ATENÇÃO</h3>
+        <p>Este script vai deletar TODOS os dados do Firebase!</p>
+        <p>Use apenas se quiser começar do zero.</p>
+    </div>
+    
+    <div class="section">
+        <h3>🧹 Ações</h3>
+        <button onclick="clearFirebase()" class="danger">🗑️ Limpar Firebase</button>
+        <button onclick="checkFirebase()" class="warning">🔍 Verificar Firebase</button>
+    </div>
+    
+    <div class="section">
+        <h3>📋 Resultados</h3>
+        <div id="results"></div>
+    </div>
+
+    <script type="module">
+        // Importar Firebase
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, getDocs, deleteDoc, doc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getAuth, signInWithPopup, GoogleAuthProvider } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        
+        // Configuração do Firebase (substitua pelas suas credenciais)
+        const firebaseConfig = {
+            // Cole suas credenciais aqui
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+        
+        async function checkFirebase() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>🔍 Verificando Firebase...</p>';
+            
+            try {
+                if (!auth.currentUser) {
+                    results.innerHTML = '<div class="error">❌ Usuário não autenticado. Faça login primeiro.</div>';
+                    return;
+                }
+                
+                // Contar documentos
+                const foodsQuery = collection(db, 'foods');
+                const entriesQuery = collection(db, 'entries');
+                const usersQuery = collection(db, 'users');
+                
+                const [foodsSnapshot, entriesSnapshot, usersSnapshot] = await Promise.all([
+                    getDocs(foodsQuery),
+                    getDocs(entriesQuery),
+                    getDocs(usersQuery)
+                ]);
+                
+                results.innerHTML = `
+                    <div class="warning">
+                        <h4>📊 Dados no Firebase:</h4>
+                        <p>🍎 Alimentos: ${foodsSnapshot.size}</p>
+                        <p>📝 Entradas: ${entriesSnapshot.size}</p>
+                        <p>👥 Usuários: ${usersSnapshot.size}</p>
+                    </div>
+                `;
+                
+            } catch (error) {
+                results.innerHTML = `<div class="error">❌ Erro: ${error.message}</div>`;
+            }
+        }
+        
+        async function clearFirebase() {
+            const confirm = prompt('⚠️ ATENÇÃO: Isso vai deletar TODOS os dados do Firebase!\n\nDigite "DELETE FIREBASE" para confirmar:');
+            if (confirm !== 'DELETE FIREBASE') {
+                alert('❌ Operação cancelada');
+                return;
+            }
+            
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>🗑️ Limpando Firebase...</p>';
+            
+            try {
+                if (!auth.currentUser) {
+                    results.innerHTML = '<div class="error">❌ Usuário não autenticado. Faça login primeiro.</div>';
+                    return;
+                }
+                
+                // Deletar todas as entradas
+                const entriesQuery = collection(db, 'entries');
+                const entriesSnapshot = await getDocs(entriesQuery);
+                
+                for (const entryDoc of entriesSnapshot.docs) {
+                    await deleteDoc(doc(db, 'entries', entryDoc.id));
+                }
+                
+                // Deletar todos os alimentos
+                const foodsQuery = collection(db, 'foods');
+                const foodsSnapshot = await getDocs(foodsQuery);
+                
+                for (const foodDoc of foodsSnapshot.docs) {
+                    await deleteDoc(doc(db, 'foods', foodDoc.id));
+                }
+                
+                // Deletar todos os usuários
+                const usersQuery = collection(db, 'users');
+                const usersSnapshot = await getDocs(usersQuery);
+                
+                for (const userDoc of usersSnapshot.docs) {
+                    await deleteDoc(doc(db, 'users', userDoc.id));
+                }
+                
+                results.innerHTML = '<div class="success">✅ Firebase limpo com sucesso!</div>';
+                
+            } catch (error) {
+                results.innerHTML = `<div class="error">❌ Erro: ${error.message}</div>`;
+            }
+        }
+        
+        // Função para fazer login
+        async function login() {
+            try {
+                await signInWithPopup(auth, provider);
+                document.getElementById('results').innerHTML = '<div class="success">✅ Login realizado com sucesso!</div>';
+            } catch (error) {
+                document.getElementById('results').innerHTML = `<div class="error">❌ Erro no login: ${error.message}</div>`;
+            }
+        }
+        
+        // Verificar se está logado
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                document.getElementById('results').innerHTML = `<div class="success">✅ Logado como: ${user.email}</div>`;
+            } else {
+                document.getElementById('results').innerHTML = '<div class="warning">⚠️ Não logado. <button onclick="login()">Fazer Login</button></div>';
+            }
+        });
+    </script>
+</body>
+</html>

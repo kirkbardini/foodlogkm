@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Limpar LocalStorage</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        .warning { background: #fff3cd; border-color: #ffeaa7; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        .danger { background: #dc3545; color: white; }
+    </style>
+</head>
+<body>
+    <h1>🧹 Limpar LocalStorage - FoodLog KM</h1>
+    
+    <div class="section warning">
+        <h3>⚠️ ATENÇÃO</h3>
+        <p>Este script vai deletar TODOS os dados do LocalStorage!</p>
+        <p>Isso vai limpar os dados persistidos pelo Zustand.</p>
+    </div>
+    
+    <div class="section">
+        <h3>🧹 Ações</h3>
+        <button onclick="clearLocalStorage()" class="danger">🗑️ Limpar LocalStorage</button>
+        <button onclick="checkLocalStorage()" class="warning">🔍 Verificar LocalStorage</button>
+    </div>
+    
+    <div class="section">
+        <h3>📋 Resultados</h3>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        async function clearLocalStorage() {
+            const confirm = prompt('⚠️ Deletar LocalStorage?\n\nDigite "DELETE" para confirmar:');
+            if (confirm !== 'DELETE') {
+                alert('❌ Operação cancelada');
+                return;
+            }
+            
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>🗑️ Limpando LocalStorage...</p>';
+            
+            try {
+                // Limpar LocalStorage
+                localStorage.clear();
+                console.log('✅ LocalStorage limpo');
+                
+                // Limpar SessionStorage também
+                sessionStorage.clear();
+                console.log('✅ SessionStorage limpo');
+                
+                results.innerHTML = '<div class="success">✅ LocalStorage limpo com sucesso!</div>';
+                
+                // Recarregar página após 2 segundos
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+                
+            } catch (error) {
+                results.innerHTML = `<div class="error">❌ Erro: ${error.message}</div>`;
+            }
+        }
+        
+        async function checkLocalStorage() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>🔍 Verificando LocalStorage...</p>';
+            
+            try {
+                const localKeys = Object.keys(localStorage);
+                const sessionKeys = Object.keys(sessionStorage);
+                
+                let details = '<h4>📊 Detalhes do LocalStorage:</h4>';
+                localKeys.forEach(key => {
+                    const value = localStorage.getItem(key);
+                    const size = value ? value.length : 0;
+                    details += `<p><strong>${key}:</strong> ${size} caracteres</p>`;
+                });
+                
+                results.innerHTML = `
+                    <div class="warning">
+                        <h4>📊 Status Atual:</h4>
+                        <p>📱 LocalStorage: ${localKeys.length} itens</p>
+                        <p>📱 SessionStorage: ${sessionKeys.length} itens</p>
+                        ${details}
+                    </div>
+                `;
+                
+            } catch (error) {
+                results.innerHTML = `<div class="error">❌ Erro: ${error.message}</div>`;
+            }
+        }
+        
+        // Verificar status inicial
+        window.onload = function() {
+            checkLocalStorage();
+        };
+    </script>
+</body>
+</html>
