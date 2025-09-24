@@ -172,17 +172,6 @@ export const AddWaterModal: React.FC<AddWaterModalProps> = ({
           placeholder="Ex: água com limão, água gelada..."
         />
 
-        {/* Nutrition Info */}
-        <div className="bg-gray-50 rounded-lg p-4">
-          <h4 className="font-medium text-gray-900 mb-2">Informações Nutricionais</h4>
-          <div className="text-sm text-gray-600">
-            <div>Proteínas: 0g</div>
-            <div>Carboidratos: 0g</div>
-            <div>Gorduras: 0g</div>
-            <div>Calorias: 0</div>
-            <div className="font-medium text-cyan-600">Água: {totalQuantity}ml</div>
-          </div>
-        </div>
 
         {/* Actions */}
         <div className="flex justify-end space-x-3">
