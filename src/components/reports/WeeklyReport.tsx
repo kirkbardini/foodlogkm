@@ -252,20 +252,32 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => [`${value}g`, '']} />
+                <Tooltip 
+                  formatter={(value) => {
+                    const total = macroData.reduce((sum, item) => sum + item.value, 0);
+                    const percentage = total > 0 ? Math.round((value as number) / total * 100) : 0;
+                    return [`${Math.round(value as number)}g (${percentage}%)`, '']}
+                  }
+                />
               </PieChart>
             </ResponsiveContainer>
           </div>
           <div className="flex justify-center space-x-4 mt-4">
-            {macroData.map((macro) => (
-              <div key={macro.name} className="flex items-center space-x-2">
-                <div
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: macro.color }}
-                />
-                <span className="text-sm text-gray-600">{macro.name}</span>
-              </div>
-            ))}
+            {macroData.map((macro) => {
+              const total = macroData.reduce((sum, item) => sum + item.value, 0);
+              const percentage = total > 0 ? Math.round(macro.value / total * 100) : 0;
+              return (
+                <div key={macro.name} className="flex items-center space-x-2">
+                  <div
+                    className="w-3 h-3 rounded-full"
+                    style={{ backgroundColor: macro.color }}
+                  />
+                  <span className="text-sm text-gray-600">
+                    {macro.name}: {Math.round(macro.value)}g ({percentage}%)
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </Card>
       </div>
