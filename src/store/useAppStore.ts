@@ -366,13 +366,25 @@ export const useAppStore = create<AppState>()(
         let updated = 0;
 
         for (const food of newFoods) {
-          const existing = get().foods.find(f => f.id === food.id);
+          // Upsert por nome (não por ID) para evitar duplicatas na re-importação
+          const existing = get().foods.find(f => f.name.toLowerCase() === food.name.toLowerCase());
           if (existing) {
-            await get().updateFood(food);
+            // Alimento já existe - atualizar com dados do JSON
+            const updatedFood = {
+              ...existing,
+              ...food,
+              id: existing.id, // Preservar ID existente
+              createdAt: existing.createdAt, // Preservar createdAt original
+              updatedAt: Date.now() // Atualizar timestamp
+            };
+            await get().updateFood(updatedFood);
             updated++;
+            console.log(`🔄 Alimento atualizado: ${food.name}`);
           } else {
+            // Alimento não existe - adicionar novo
             await get().addFood(food);
             added++;
+            console.log(`✅ Alimento adicionado: ${food.name}`);
           }
         }
 
