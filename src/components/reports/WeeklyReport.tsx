@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { Card } from '../ui/Card';
-import { ProgressBar } from '../ui/ProgressBar';
+import { CompactNutritionCard } from '../ui/CompactNutritionCard';
 import { Button } from '../ui/Button';
 import { formatNumber } from '../../lib/calculations';
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
@@ -58,13 +58,27 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
     water_ml: sum.water_ml + day.water_ml
   }), { protein_g: 0, carbs_g: 0, fat_g: 0, kcal: 0, water_ml: 0 });
 
+  // Calcular dias ativos (dias com dados)
+  const activeDays = dailyData.filter(day => day.kcal > 0).length;
+  const activeDaysCount = Math.max(activeDays, 1); // Pelo menos 1 dia para evitar divisão por zero
+
+  // Calcular metas semanais baseadas em dias ativos
+  const weeklyGoals = {
+    protein_g: dailyGoal.protein_g * activeDaysCount,
+    carbs_g: dailyGoal.carbs_g * activeDaysCount,
+    fat_g: dailyGoal.fat_g * activeDaysCount,
+    kcal: dailyGoal.kcal * activeDaysCount,
+    water_ml: dailyGoal.water_ml * activeDaysCount
+  };
+
   // Calcular médias diárias
   const weekMetrics = {
     totalCalories: weekTotals.kcal,
-    avgCalories: weekTotals.kcal / 7,
+    avgCalories: weekTotals.kcal / activeDaysCount,
     totalWater: weekTotals.water_ml,
-    avgWater: weekTotals.water_ml / 7,
-    goalWater: dailyGoal.water_ml * 7,
+    avgWater: weekTotals.water_ml / activeDaysCount,
+    goalWater: weeklyGoals.water_ml,
+    activeDays: activeDays,
     bestDay: dailyData.reduce((best, day) => 
       Math.abs(day.kcal - dailyGoal.kcal) < Math.abs(best.kcal - dailyGoal.kcal) ? day : best
     ),
@@ -72,11 +86,11 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
       Math.abs(day.kcal - dailyGoal.kcal) > Math.abs(worst.kcal - dailyGoal.kcal) ? day : worst
     ),
     progressPercentages: {
-      protein: dailyGoal.protein_g > 0 ? Math.round((weekTotals.protein_g / (dailyGoal.protein_g * 7)) * 100) : 0,
-      carbs: dailyGoal.carbs_g > 0 ? Math.round((weekTotals.carbs_g / (dailyGoal.carbs_g * 7)) * 100) : 0,
-      fat: dailyGoal.fat_g > 0 ? Math.round((weekTotals.fat_g / (dailyGoal.fat_g * 7)) * 100) : 0,
-      kcal: Math.round((weekTotals.kcal / (dailyGoal.kcal * 7)) * 100),
-      water: dailyGoal.water_ml > 0 ? Math.round((weekTotals.water_ml / (dailyGoal.water_ml * 7)) * 100) : 0
+      protein: weeklyGoals.protein_g > 0 ? Math.round((weekTotals.protein_g / weeklyGoals.protein_g) * 100) : 0,
+      carbs: weeklyGoals.carbs_g > 0 ? Math.round((weekTotals.carbs_g / weeklyGoals.carbs_g) * 100) : 0,
+      fat: weeklyGoals.fat_g > 0 ? Math.round((weekTotals.fat_g / weeklyGoals.fat_g) * 100) : 0,
+      kcal: Math.round((weekTotals.kcal / weeklyGoals.kcal) * 100),
+      water: weeklyGoals.water_ml > 0 ? Math.round((weekTotals.water_ml / weeklyGoals.water_ml) * 100) : 0
     }
   };
 
@@ -122,78 +136,88 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
         </Button>
       </div>
 
-      {/* Main Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        {/* Total Calories */}
-        <Card>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-red-600 mb-2">
-              {formatNumber(weekTotals.kcal)}
-            </div>
-            <div className="text-sm text-gray-600 mb-3">Calorias Totais</div>
-            <div className="text-xs text-gray-500">
-              Média: {formatNumber(weekMetrics.avgCalories)}/dia
-            </div>
-          </div>
-        </Card>
+      {/* Main Metrics with Compact Nutrition Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        {/* Protein */}
+        <CompactNutritionCard
+          value={weekTotals.protein_g}
+          max={weeklyGoals.protein_g}
+          color="bg-blue-500"
+          label="Proteínas"
+          unit="g"
+          icon="🥩"
+        />
 
-        {/* Best Day */}
-        <Card>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-green-600 mb-2">
-              {formatNumber(weekMetrics.bestDay.kcal)}
-            </div>
-            <div className="text-sm text-gray-600 mb-3">Melhor Dia</div>
-            <div className="text-xs text-gray-500">
-              {weekMetrics.bestDay.dayName} {weekMetrics.bestDay.dayNumber}
-            </div>
-          </div>
-        </Card>
+        {/* Carbs */}
+        <CompactNutritionCard
+          value={weekTotals.carbs_g}
+          max={weeklyGoals.carbs_g}
+          color="bg-green-500"
+          label="Carboidratos"
+          unit="g"
+          icon="🍞"
+        />
 
-        {/* Worst Day */}
-        <Card>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-orange-600 mb-2">
-              {formatNumber(weekMetrics.worstDay.kcal)}
-            </div>
-            <div className="text-sm text-gray-600 mb-3">Pior Dia</div>
-            <div className="text-xs text-gray-500">
-              {weekMetrics.worstDay.dayName} {weekMetrics.worstDay.dayNumber}
-            </div>
-          </div>
-        </Card>
+        {/* Fat */}
+        <CompactNutritionCard
+          value={weekTotals.fat_g}
+          max={weeklyGoals.fat_g}
+          color="bg-yellow-500"
+          label="Gorduras"
+          unit="g"
+          icon="🥑"
+        />
+
+        {/* Calories */}
+        <CompactNutritionCard
+          value={weekTotals.kcal}
+          max={weeklyGoals.kcal}
+          color="bg-red-500"
+          label="Calorias"
+          unit="kcal"
+          icon="🔥"
+        />
 
         {/* Water */}
-        <Card>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-cyan-600 mb-2">
-              {formatNumber(weekTotals.water_ml)}ml
-            </div>
-            <div className="text-sm text-gray-600 mb-3">Água Total</div>
-            <ProgressBar
-              value={weekTotals.water_ml}
-              max={weekMetrics.goalWater}
-              color="cyan"
-            />
-            <div className="text-xs text-gray-500 mt-1">
-              Meta: {weekMetrics.goalWater}ml
-            </div>
-          </div>
-        </Card>
-
-        {/* Progress */}
-        <Card>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-purple-600 mb-2">
-              {weekMetrics.progressPercentages.kcal}%
-            </div>
-            <div className="text-sm text-gray-600 mb-3">Progresso</div>
-            <div className="text-xs text-gray-500">
-              Meta semanal
-            </div>
-          </div>
-        </Card>
+        <CompactNutritionCard
+          value={weekTotals.water_ml}
+          max={weeklyGoals.water_ml}
+          color="bg-cyan-500"
+          label="Água"
+          unit="ml"
+          icon="💧"
+        />
       </div>
+
+      {/* Week Summary */}
+      <Card>
+        <div className="p-4">
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">Resumo da Semana</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600 mb-1">
+                {weekMetrics.activeDays}
+              </div>
+              <div className="text-sm text-gray-600">Dias Ativos</div>
+              <div className="text-xs text-gray-500">de 7 dias</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600 mb-1">
+                {Math.round(weekMetrics.avgCalories)}
+              </div>
+              <div className="text-sm text-gray-600">Média Calorias</div>
+              <div className="text-xs text-gray-500">por dia ativo</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-cyan-600 mb-1">
+                {Math.round(weekMetrics.avgWater)}ml
+              </div>
+              <div className="text-sm text-gray-600">Média Água</div>
+              <div className="text-xs text-gray-500">por dia ativo</div>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
