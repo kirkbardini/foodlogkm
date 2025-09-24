@@ -256,7 +256,9 @@ class FirebaseSyncService {
   }
 
   async deleteFood(id: string): Promise<void> {
+    console.log(`🗑️ Deletando alimento do Firebase: ${id}`);
     await deleteDoc(doc(db, 'foods', id));
+    console.log(`✅ Alimento deletado do Firebase: ${id}`);
   }
 
   // Entries
@@ -378,7 +380,9 @@ class FirebaseSyncService {
   }
 
   async deleteEntry(id: string): Promise<void> {
+    console.log(`🗑️ Deletando entrada do Firebase: ${id}`);
     await deleteDoc(doc(db, 'entries', id));
+    console.log(`✅ Entrada deletada do Firebase: ${id}`);
   }
 
   // Users

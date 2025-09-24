@@ -32,6 +32,8 @@ export interface Entry {
   fat_g: number;
   kcal: number;
   water_ml: number;
+  updatedAt?: number;       // timestamp da última atualização
+  createdAt?: number;        // timestamp da criação
 }
 
 export interface UserPrefs {

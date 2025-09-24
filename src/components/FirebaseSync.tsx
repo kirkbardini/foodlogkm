@@ -310,6 +310,26 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
       await firebaseSyncService.saveFoods(foods);
       console.log(`✅ ${foods.length} alimentos sincronizados com Firebase`);
       
+      // Verificar se há alimentos que foram deletados localmente mas ainda existem no Firebase
+      console.log('🔍 Verificando alimentos deletados localmente...');
+      const firebaseFoods = await firebaseSyncService.loadFoods();
+      const localFoodIds = new Set(foods.map(f => f.id));
+      const deletedFoods = firebaseFoods.filter(f => !localFoodIds.has(f.id));
+      
+      if (deletedFoods.length > 0) {
+        console.log(`🗑️ Encontrados ${deletedFoods.length} alimentos para deletar do Firebase:`, deletedFoods.map(f => f.name));
+        for (const food of deletedFoods) {
+          try {
+            await firebaseSyncService.deleteFood(food.id);
+            console.log(`✅ Alimento deletado do Firebase: ${food.name}`);
+          } catch (error) {
+            console.error(`❌ Erro ao deletar alimento ${food.name}:`, error);
+          }
+        }
+      } else {
+        console.log('✅ Nenhum alimento deletado localmente encontrado');
+      }
+      
       setSyncStatus('success');
     } catch (error) {
       console.error('Erro ao salvar dados:', error);

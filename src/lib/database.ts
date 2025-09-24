@@ -101,6 +101,11 @@ class Database {
     return await db.getAll('entries');
   }
 
+  async getEntry(id: string): Promise<Entry | undefined> {
+    const db = this.ensureDB();
+    return await db.get('entries', id);
+  }
+
   async getEntriesForUser(userId: string): Promise<Entry[]> {
     const db = this.ensureDB();
     return await db.getAllFromIndex('entries', 'by-user-date', IDBKeyRange.only(userId));

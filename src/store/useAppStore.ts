@@ -58,8 +58,7 @@ interface AppState {
   getEntriesForDate: (userId: UserId, date: string) => Entry[];
   getEntriesForDateRange: (userId: UserId, startDate: string, endDate: string) => Entry[];
 
-  // Ações de usuários
-  updateUserGoals: (userId: UserId, goals: UserPrefs['goals']) => Promise<void>;
+  // Ações de usuários - updateUserGoals removida (deprecada)
 
   // Ações de backup
   exportBackup: () => Promise<AppStateBackup>;
@@ -107,10 +106,11 @@ const defaultSettings: AppSettings = {
 // Função auxiliar para sincronização rápida e segura
 const syncToFirebase = async (operation: () => Promise<void>, itemType: string) => {
   try {
+    console.log(`🔄 Iniciando sincronização: ${itemType}`);
     await operation();
     console.log(`✅ ${itemType} sincronizado com Firebase`);
   } catch (error) {
-    console.warn(`⚠️ Falha na sincronização de ${itemType}:`, error);
+    console.error(`❌ Falha na sincronização de ${itemType}:`, error);
     // Não falha a operação local se o Firebase falhar
   }
 };
@@ -184,15 +184,84 @@ export const useAppStore = create<AppState>()(
             // Verificar se já temos dados locais suficientes
             const localFoods = await database.getAllFoods();
             const localUsers = await database.getAllUsers();
+            const localEntries = await database.getAllEntries();
             
             if (localFoods.length > 0 && localUsers.length > 0) {
-              console.log(`✅ Dados locais encontrados: ${localFoods.length} alimentos, ${localUsers.length} usuários`);
-              console.log('📱 Usando dados locais - Firebase já sincronizado');
-              set({ foods: localFoods, entries, users: localUsers });
+              console.log(`✅ Dados locais encontrados: ${localFoods.length} alimentos, ${localUsers.length} usuários, ${localEntries.length} entradas`);
+              console.log('🔄 Verificando se há dados mais recentes no Firebase...');
+              
+              // Sempre verificar Firebase para detectar novas entradas/alimentos
+              const { foods: firebaseFoods, users: firebaseUsers, entries: firebaseEntries } = await firebaseSyncService.loadAllUsersData();
+              console.log(`📦 Firebase: ${firebaseFoods.length} alimentos, ${firebaseUsers.length} usuários, ${firebaseEntries.length} entradas`);
+              
+              // Verificar se há diferenças significativas
+              const hasNewData = firebaseEntries.length > localEntries.length || 
+                                firebaseFoods.length > localFoods.length ||
+                                firebaseUsers.length > localUsers.length;
+              
+              if (hasNewData) {
+                console.log('🔄 Novos dados detectados no Firebase, sincronizando...');
+                
+                // Sincronizar alimentos
+                for (const firebaseFood of firebaseFoods) {
+                  try {
+                    const existingFood = await database.getFood(firebaseFood.id);
+                    if (existingFood) {
+                      const localUpdatedAt = existingFood.updatedAt || 0;
+                      const firebaseUpdatedAt = firebaseFood.updatedAt || 0;
+                      if (firebaseUpdatedAt > localUpdatedAt) {
+                        await database.updateFood(firebaseFood);
+                        console.log(`🔄 Alimento atualizado do Firebase: ${firebaseFood.name}`);
+                      }
+                    } else {
+                      await database.addFood(firebaseFood);
+                      console.log(`✅ Alimento adicionado do Firebase: ${firebaseFood.name}`);
+                    }
+                  } catch (error) {
+                    console.warn(`⚠️ Erro ao sincronizar alimento ${firebaseFood.name}:`, error);
+                  }
+                }
+                
+                // Sincronizar entradas
+                for (const firebaseEntry of firebaseEntries) {
+                  try {
+                    const existingEntry = await database.getEntry(firebaseEntry.id);
+                    if (existingEntry) {
+                      const localUpdatedAt = existingEntry.updatedAt || 0;
+                      const firebaseUpdatedAt = firebaseEntry.updatedAt || 0;
+                      if (firebaseUpdatedAt > localUpdatedAt) {
+                        await database.updateEntry(firebaseEntry);
+                        console.log(`🔄 Entrada atualizada do Firebase: ${firebaseEntry.foodId} (${firebaseEntry.dateISO})`);
+                      }
+                    } else {
+                      await database.addEntry(firebaseEntry);
+                      console.log(`✅ Entrada adicionada do Firebase: ${firebaseEntry.foodId} (${firebaseEntry.dateISO})`);
+                    }
+                  } catch (error) {
+                    console.warn(`⚠️ Erro ao sincronizar entrada ${firebaseEntry.id}:`, error);
+                  }
+                }
+                
+                // Atualizar usuários
+                for (const user of firebaseUsers) {
+                  await database.updateUser(user);
+                  console.log(`👤 Usuário atualizado do Firebase: ${user.name}`);
+                }
+                
+                // Recarregar dados atualizados
+                const updatedFoods = await database.getAllFoods();
+                const updatedUsers = await database.getAllUsers();
+                const updatedEntries = await database.getAllEntries();
+                console.log(`✅ Sincronização concluída: ${updatedFoods.length} alimentos, ${updatedUsers.length} usuários, ${updatedEntries.length} entradas`);
+                set({ foods: updatedFoods, entries: updatedEntries, users: updatedUsers });
+              } else {
+                console.log('📱 Dados locais estão atualizados - usando dados locais');
+                set({ foods: localFoods, entries: localEntries, users: localUsers });
+              }
             } else {
               console.log('🔄 Dados locais insuficientes, carregando do Firebase...');
-              const { foods: firebaseFoods, users: firebaseUsers } = await firebaseSyncService.loadAllUsersData();
-              console.log(`📦 Encontrados ${firebaseFoods.length} alimentos e ${firebaseUsers.length} usuários no Firebase`);
+              const { foods: firebaseFoods, users: firebaseUsers, entries: firebaseEntries } = await firebaseSyncService.loadAllUsersData();
+              console.log(`📦 Encontrados ${firebaseFoods.length} alimentos, ${firebaseUsers.length} usuários e ${firebaseEntries.length} entradas no Firebase`);
               
               // Sincronização unidirecional: Firebase → Local (evitar duplicatas)
               console.log('🔄 Sincronizando alimentos do Firebase para local...');
@@ -227,6 +296,36 @@ export const useAppStore = create<AppState>()(
               // NÃO enviar alimentos locais para o Firebase para evitar duplicatas
               console.log('📱 Sincronização unidirecional concluída - Firebase é a fonte da verdade');
               
+              // Sincronização inteligente de entradas: Firebase → Local
+              console.log('🔄 Sincronizando entradas do Firebase para local...');
+              
+              for (const firebaseEntry of firebaseEntries) {
+                try {
+                  const existingEntry = await database.getEntry(firebaseEntry.id);
+                  
+                  if (existingEntry) {
+                    // Entrada já existe localmente - verificar se precisa atualizar
+                    const localUpdatedAt = existingEntry.updatedAt || 0;
+                    const firebaseUpdatedAt = firebaseEntry.updatedAt || 0;
+                    
+                    if (firebaseUpdatedAt > localUpdatedAt) {
+                      // Firebase é mais recente - atualizar local
+                      await database.updateEntry(firebaseEntry);
+                      console.log(`🔄 Entrada atualizada do Firebase: ${firebaseEntry.foodId} (${firebaseEntry.dateISO})`);
+                    } else {
+                      // Local é mais recente ou igual - manter local
+                      console.log(`✅ Entrada local mais recente: ${firebaseEntry.foodId} (${firebaseEntry.dateISO})`);
+                    }
+                  } else {
+                    // Entrada não existe localmente - adicionar
+                    await database.addEntry(firebaseEntry);
+                    console.log(`✅ Entrada adicionada do Firebase: ${firebaseEntry.foodId} (${firebaseEntry.dateISO})`);
+                  }
+                } catch (error) {
+                  console.warn(`⚠️ Erro ao sincronizar entrada ${firebaseEntry.id}:`, error);
+                }
+              }
+              
               // Atualizar usuários do Firebase (metas)
               for (const user of firebaseUsers) {
                 await database.updateUser(user);
@@ -236,8 +335,9 @@ export const useAppStore = create<AppState>()(
               // Carregar todos os dados do IndexedDB para o estado
               const allFoods = await database.getAllFoods();
               const allUsers = await database.getAllUsers();
-              console.log(`✅ ${allFoods.length} alimentos e ${allUsers.length} usuários carregados do Firebase`);
-              set({ foods: allFoods, entries, users: allUsers });
+              const allEntries = await database.getAllEntries();
+              console.log(`✅ ${allFoods.length} alimentos, ${allUsers.length} usuários e ${allEntries.length} entradas carregados do Firebase`);
+              set({ foods: allFoods, entries: allEntries, users: allUsers });
             }
           } catch (error) {
             console.error('Erro ao carregar dados do Firebase:', error);
@@ -335,15 +435,21 @@ export const useAppStore = create<AppState>()(
           },
 
       deleteFood: async (id) => {
+        // Buscar dados do alimento antes de deletar
+        const foodToDelete = get().foods.find(f => f.id === id);
+        console.log(`🗑️ Deletando alimento local: ${foodToDelete?.name} (${id})`);
+        
         await database.deleteFood(id);
         set(state => ({
           foods: state.foods.filter(f => f.id !== id)
         }));
         
         // Sincronização automática com Firebase (GRADUAL - alimentos)
-        const food = get().foods.find(f => f.id === id);
-        if (food) {
-          await syncToFirebase(() => firebaseSyncService.deleteFood(id), `alimento ${food.name}`);
+        if (foodToDelete) {
+          console.log(`🔄 Sincronizando deleção com Firebase: ${foodToDelete.name}`);
+          await syncToFirebase(() => firebaseSyncService.deleteFood(id), `alimento ${foodToDelete.name}`);
+        } else {
+          console.warn(`⚠️ Alimento não encontrado para sincronização: ${id}`);
         }
       },
 
@@ -393,9 +499,12 @@ export const useAppStore = create<AppState>()(
 
       // Ações de entradas
       addEntry: async (entryData) => {
+        const now = Date.now();
         const entry: Entry = {
           ...entryData,
-          id: generateId(),
+          id: (entryData as any).id || generateId(), // Preservar ID existente ou gerar novo
+          createdAt: (entryData as any).createdAt || now,
+          updatedAt: now,
           water_ml: entryData.water_ml || 0 // Garantir que water_ml nunca seja undefined
         };
         
@@ -416,7 +525,8 @@ export const useAppStore = create<AppState>()(
         // Garantir que water_ml nunca seja undefined
         const updatedEntry = {
           ...entry,
-          water_ml: entry.water_ml || 0
+          water_ml: entry.water_ml || 0,
+          updatedAt: Date.now()
         };
         await database.updateEntry(updatedEntry);
         set(state => ({
@@ -428,8 +538,9 @@ export const useAppStore = create<AppState>()(
       },
 
       deleteEntry: async (id) => {
-        // Buscar entrada ANTES de remover do estado
+        // ✅ Buscar entry ANTES de deletar para manter informações completas
         const entry = get().entries.find(e => e.id === id);
+        console.log(`🗑️ Deletando entrada local: ${entry?.foodId} (${entry?.dateISO}) - ${id}`);
         
         await database.deleteEntry(id);
         set(state => ({
@@ -438,7 +549,10 @@ export const useAppStore = create<AppState>()(
         
         // Sincronização automática com Firebase (GRADUAL - entradas)
         if (entry) {
-          await syncToFirebase(() => firebaseSyncService.deleteEntry(id), `entrada ${entry.foodId}`);
+          console.log(`🔄 Sincronizando deleção com Firebase: ${entry.foodId} (${entry.dateISO})`);
+          await syncToFirebase(() => firebaseSyncService.deleteEntry(id), `entrada ${entry.foodId} (${entry.dateISO})`);
+        } else {
+          console.warn(`⚠️ Entrada não encontrada para sincronização: ${id}`);
         }
       },
 
@@ -459,23 +573,7 @@ export const useAppStore = create<AppState>()(
         );
       },
 
-      // Ações de usuários
-      updateUserGoals: async (userId, goals) => {
-        const { users } = get();
-        const updatedUsers = users.map(user => 
-          user.id === userId ? { ...user, goals } : user
-        );
-        
-        const updatedUser = updatedUsers.find(u => u.id === userId);
-        if (updatedUser) {
-          await database.updateUser(updatedUser);
-          
-          // Sincronização automática com Firebase (GRADUAL - apenas usuários)
-          await syncToFirebase(() => firebaseSyncService.saveUsers([updatedUser]), `usuário ${updatedUser.name}`);
-        }
-        
-        set({ users: updatedUsers });
-      },
+      // Ações de usuários - updateUserGoals removida (deprecada)
 
       // Ações de backup
       exportBackup: async () => {
