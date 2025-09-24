@@ -153,20 +153,33 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
         // Atualiza alimentos locais com os do Firebase
         console.log(`🔄 Sincronizando ${firebaseFoods.length} alimentos do Firebase...`);
         
-        // Verifica quais alimentos já existem localmente
-        const allFoods = await database.getAllFoods();
-        const existingFoodIds = new Set(allFoods.map(f => f.id));
+        // Sincronização unidirecional: Firebase → Local (evitar duplicatas)
+        console.log('🔄 Sincronizando alimentos do Firebase para local...');
         
-        // Adiciona/atualiza todos os alimentos do Firebase
-        for (const food of firebaseFoods) {
-          if (existingFoodIds.has(food.id)) {
-            // Alimento já existe - atualiza
-            await updateFood(food);
-            console.log(`🔄 Alimento atualizado: ${food.name}`);
-          } else {
-            // Alimento não existe - adiciona novo
-            await addFood(food);
-            console.log(`✅ Alimento adicionado: ${food.name}`);
+        for (const firebaseFood of firebaseFoods) {
+          try {
+            const existingFood = await database.getFood(firebaseFood.id);
+            
+            if (existingFood) {
+              // Alimento já existe localmente - verificar se precisa atualizar
+              const localUpdatedAt = existingFood.updatedAt || 0;
+              const firebaseUpdatedAt = firebaseFood.updatedAt || 0;
+              
+              if (firebaseUpdatedAt > localUpdatedAt) {
+                // Firebase é mais recente - atualizar local
+                await updateFood(firebaseFood);
+                console.log(`🔄 Alimento atualizado do Firebase: ${firebaseFood.name}`);
+              } else {
+                // Local é mais recente ou igual - manter local
+                console.log(`✅ Alimento local mais recente: ${firebaseFood.name}`);
+              }
+            } else {
+              // Alimento não existe localmente - adicionar
+              await addFood(firebaseFood);
+              console.log(`✅ Alimento adicionado do Firebase: ${firebaseFood.name}`);
+            }
+          } catch (error) {
+            console.warn(`⚠️ Erro ao sincronizar alimento ${firebaseFood.name}:`, error);
           }
         }
         
