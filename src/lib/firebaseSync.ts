@@ -440,7 +440,8 @@ class FirebaseSyncService {
           fat_g: data.goals?.fat_g || 0,
           kcal: data.goals?.kcal || 0,
           water_ml: data.goals?.water_ml || 0
-        }
+        },
+        weeklyGoalFactor: data.weeklyGoalFactor || 1.0
       } as UserPrefs;
     });
   }

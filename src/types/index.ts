@@ -46,6 +46,7 @@ export interface UserPrefs {
     kcal: number;
     water_ml: number;
   };
+  weeklyGoalFactor?: number; // Fator multiplicador para metas semanais
 }
 
 export interface AppSettings {

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { firebaseSyncService } from '../lib/firebaseSync';
 import { database } from '../lib/database';
-import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 
@@ -18,18 +17,12 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
   onLoadingChange
 }) => {
   const {
-    users,
-    setUsers,
-    addEntryFromSync,
-    addFood,
-    updateFood,
     loadInitialData,
     isAuthenticated,
     setAuthenticated
   } = useAppStore();
   const [isLoading, setIsLoading] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
-  const [showSyncModal, setShowSyncModal] = useState(false);
 
   // Verificar autenticação - REABILITADO para usuários
   useEffect(() => {
@@ -47,47 +40,6 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
 
     return () => unsubscribe();
   }, []);
-
-  // Listener para mudanças de usuários em tempo real - Comentado para evitar loops
-  // useEffect(() => {
-  //   if (isAuthenticated) {
-  //     const unsubscribe = firebaseSyncService.onUsersChange((firebaseUsers) => {
-  //       console.log('🔄 Usuários atualizados em tempo real do Firebase:', firebaseUsers);
-  //       
-  //       // Aplicar migração apenas se necessário para TODOS os macros
-  //       const migratedUsers = firebaseUsers.map(user => {
-  //         const needsMigration = !user.goals.water_ml || user.goals.water_ml === 0;
-  //         
-  //         if (needsMigration) {
-  //           console.log(`🔧 Migrando usuário ${user.name} - aplicando metas padrão`);
-  //           return {
-  //             ...user,
-  //             goals: {
-  //               protein_g: user.goals.protein_g || (user.id === 'kirk' ? 160 : 120),
-  //                 carbs_g: user.goals.carbs_g || (user.id === 'kirk' ? 220 : 180),
-  //                 fat_g: user.goals.fat_g || (user.id === 'kirk' ? 60 : 50),
-  //                 kcal: user.goals.kcal || (user.id === 'kirk' ? 2400 : 2000),
-  //                 water_ml: user.goals.water_ml || (user.id === 'kirk' ? 3000 : 2500)
-  //             }
-  //           };
-  //         }
-  //         
-  //         return user;
-  //       });
-  //       
-  //       // Firebase é a fonte da verdade - substitui completamente os dados locais
-  //       setUsers(migratedUsers);
-  //     });
-  //     setUsersListener(() => unsubscribe);
-  //   }
-  //   
-  //   return () => {
-  //     if (usersListener) {
-  //       usersListener();
-  //       setUsersListener(null);
-  //     }
-  //   };
-  // }, [isAuthenticated, setUsers]);
 
   const checkAuthentication = async () => {
     const user = firebaseSyncService.getCurrentUser();
@@ -113,13 +65,15 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
   const handleGoogleLogin = async () => {
     setIsLoading(true);
     setSyncStatus('syncing');
-    onLoadingChange?.(true);
     
     try {
       const success = await firebaseSyncService.signInWithGoogle();
       if (success) {
         setAuthenticated(true);
-        console.log('✅ Login realizado, verificando sincronização...');
+        console.log('✅ Login realizado com sucesso');
+        
+        // Mostrar loading durante verificação
+        onLoadingChange?.(true);
         
         try {
           // Sincronização real - carregar dados do Firebase
@@ -128,16 +82,17 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
         } catch (error) {
           console.error('❌ Erro na sincronização:', error);
           setSyncStatus('error');
+        } finally {
+          onLoadingChange?.(false);
         }
       } else {
         setSyncStatus('error');
       }
     } catch (error) {
-      console.error('Erro no login:', error);
+      console.error('❌ Erro no login:', error);
       setSyncStatus('error');
     } finally {
       setIsLoading(false);
-      onLoadingChange?.(false);
     }
   };
 
@@ -147,146 +102,113 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
     setSyncStatus('idle');
   };
 
-  const loadDataFromFirebase = async (needsFoods?: boolean, needsEntries?: boolean) => {
+  const loadDataFromFirebase = async () => {
     setIsLoading(true);
     setSyncStatus('syncing');
     
     try {
-      // Se não especificado, carrega tudo (comportamento padrão)
-      if (needsFoods === undefined || needsEntries === undefined) {
-        const { entries: firebaseEntries, foods: firebaseFoods, users: firebaseUsers } = await firebaseSyncService.loadAllUsersData();
-        
-        console.log(`📊 Carregando dados (FIREBASE): ${firebaseEntries.length} entradas, ${firebaseFoods.length} alimentos, ${firebaseUsers.length} usuários`);
-        
-        for (const firebaseFood of firebaseFoods) {
-          try {
-            const existingFood = await database.getFood(firebaseFood.id);
-            
-            if (existingFood) {
-              // Alimento já existe localmente - verificar se precisa atualizar
-              const localUpdatedAt = existingFood.updatedAt || 0;
-              const firebaseUpdatedAt = firebaseFood.updatedAt || 0;
-              
-              if (firebaseUpdatedAt > localUpdatedAt) {
-                // Firebase é mais recente - atualizar local
-                await updateFood(firebaseFood);
-              }
-            } else {
-              // Alimento não existe localmente - adicionar
-              await addFood(firebaseFood);
-            }
-          } catch (error) {
-            console.warn(`⚠️ Erro ao sincronizar alimento ${firebaseFood.name}:`, error);
-          }
-        }
-        
-        // Atualiza entradas (merge com existentes) - permite edição de qualquer usuário
-        const allEntries = await database.getAllEntries();
-        
-        // Verifica quais entradas já existem localmente
-        const existingEntryIds = new Set(allEntries.map(e => e.id));
-        let entriesUpdated = 0;
-        let entriesAdded = 0;
-        
-        // Adiciona/atualiza todas as entradas do Firebase no IndexedDB
-        for (const entry of firebaseEntries) {
-          if (existingEntryIds.has(entry.id)) {
-            // Entrada já existe - atualiza
-            await database.updateEntry(entry);
-            entriesUpdated++;
-          } else {
-            // Entrada não existe - adiciona nova
-            await database.addEntry(entry);
-            addEntryFromSync(entry);
-            entriesAdded++;
-          }
-        }
-        
-        if (entriesUpdated > 0 || entriesAdded > 0) {
-          console.log(`📝 Entradas sincronizadas: ${entriesAdded} novas, ${entriesUpdated} atualizadas`);
-        }
-        
-        if (firebaseUsers.length > 0) {
-          // Aplicar migração apenas se necessário para TODOS os macros
-          const migratedUsers = firebaseUsers.map(user => {
-            const needsMigration = !user.goals.water_ml || user.goals.water_ml === 0;
-            
-            if (needsMigration) {
-              // Migrando usuário - aplicando metas padrão
-              return {
-                ...user,
-                goals: {
-                  protein_g: user.goals.protein_g || (user.id === 'kirk' ? 160 : 120),
-                  carbs_g: user.goals.carbs_g || (user.id === 'kirk' ? 220 : 180),
-                  fat_g: user.goals.fat_g || (user.id === 'kirk' ? 60 : 50),
-                  kcal: user.goals.kcal || (user.id === 'kirk' ? 2400 : 2000),
-                  water_ml: user.goals.water_ml || (user.id === 'kirk' ? 3000 : 2500)
-              }
-            };
-          }
-          return user;
-        });
-        setUsers(migratedUsers); // Substitui completamente os usuários locais
+      // ESTRATÉGIA UNIDIRECIONAL: Firebase → Local
+      console.log('🔄 Carregando dados do Firebase (FIREBASE → LOCAL)...');
+      
+      // Carregar todos os dados do Firebase (fonte da verdade)
+      const { entries: firebaseEntries, foods: firebaseFoods, users: firebaseUsers } = await firebaseSyncService.loadAllUsersData();
+      
+      console.log(`📊 Dados do Firebase: ${firebaseEntries.length} entradas, ${firebaseFoods.length} alimentos, ${firebaseUsers.length} usuários`);
+      
+      // Atualizar dados locais com dados do Firebase (unidirecional)
+      console.log('🔄 Atualizando dados locais com dados do Firebase...');
+      
+      // 1. Atualizar usuários (metas) do Firebase
+      for (const user of firebaseUsers) {
+        await database.updateUser(user);
       }
-      } else {
-        // Carregamento seletivo baseado nos parâmetros
-        if (needsFoods) {
-          console.log('🍎 Carregando apenas alimentos do Firebase...');
-          const firebaseFoods = await firebaseSyncService.loadFoods();
+      console.log(`👥 ${firebaseUsers.length} usuários atualizados do Firebase`);
+      
+      // 2. Atualizar alimentos do Firebase
+      for (const firebaseFood of firebaseFoods) {
+        try {
+          const existingFood = await database.getFood(firebaseFood.id);
           
-          // Sincroniza apenas alimentos
-          const allFoods = await database.getAllFoods();
-          const existingFoodIds = new Set(allFoods.map(f => f.id));
-          
-          let foodsUpdated = 0;
-          let foodsAdded = 0;
-          
-          for (const food of firebaseFoods) {
-            if (existingFoodIds.has(food.id)) {
-              await updateFood(food);
-              foodsUpdated++;
-            } else {
-              await addFood(food);
-              foodsAdded++;
-            }
+          if (existingFood) {
+            // Alimento existe - atualizar com dados do Firebase
+            await database.updateFood(firebaseFood);
+          } else {
+            // Alimento não existe - adicionar do Firebase
+            await database.addFood(firebaseFood);
           }
-          
-          // Alimentos sincronizados (FIREBASE → LOCAL)
+        } catch (error) {
+          console.warn(`⚠️ Erro ao sincronizar alimento ${firebaseFood.name}:`, error);
         }
-        
-        if (needsEntries) {
-          // Carregando apenas entradas (FIREBASE)
-          const currentUser = firebaseSyncService.getCurrentUser();
-          if (currentUser) {
-            const userId = firebaseSyncService.getUserIdFromEmail(currentUser.email || '');
-            const firebaseEntries = await firebaseSyncService.loadEntries(userId);
-            
-            // Sincroniza apenas entradas
-            const allEntries = await database.getAllEntries();
-            const existingEntryIds = new Set(allEntries.map(e => e.id));
-            
-            let entriesUpdated = 0;
-            let entriesAdded = 0;
-            
-            for (const entry of firebaseEntries) {
-              if (existingEntryIds.has(entry.id)) {
-                await database.updateEntry(entry);
-                entriesUpdated++;
-              } else {
-                await database.addEntry(entry);
-                addEntryFromSync(entry);
-                entriesAdded++;
-              }
-            }
-            
-            // Entradas sincronizadas (FIREBASE → LOCAL)
+      }
+      console.log(`🍎 ${firebaseFoods.length} alimentos sincronizados do Firebase`);
+      
+      // 2.1. Detectar e remover alimentos deletados no Firebase
+      const localFoods = await database.getAllFoods();
+      const firebaseFoodIds = new Set(firebaseFoods.map(f => f.id));
+      const foodsToDelete = localFoods.filter(food => !firebaseFoodIds.has(food.id));
+      
+      if (foodsToDelete.length > 0) {
+        console.log(`🗑️ Detectados ${foodsToDelete.length} alimentos deletados no Firebase`);
+        for (const food of foodsToDelete) {
+          try {
+            await database.deleteFood(food.id);
+            console.log(`🗑️ Alimento deletado localmente: ${food.name}`);
+          } catch (error) {
+            console.warn(`⚠️ Erro ao deletar alimento ${food.name}:`, error);
           }
         }
+        console.log(`✅ ${foodsToDelete.length} alimentos deletados localmente`);
       }
       
+      // 3. Atualizar entradas do Firebase
+      for (const firebaseEntry of firebaseEntries) {
+        try {
+          const existingEntry = await database.getEntry(firebaseEntry.id);
+          
+          if (existingEntry) {
+            // Entrada existe - atualizar com dados do Firebase
+            await database.updateEntry(firebaseEntry);
+          } else {
+            // Entrada não existe - adicionar do Firebase
+            await database.addEntry(firebaseEntry);
+          }
+        } catch (error) {
+          console.warn(`⚠️ Erro ao sincronizar entrada ${firebaseEntry.id}:`, error);
+        }
+      }
+      console.log(`📝 ${firebaseEntries.length} entradas sincronizadas do Firebase`);
+      
+      // 3.1. Detectar e remover entradas deletadas no Firebase
+      const localEntries = await database.getAllEntries();
+      const firebaseEntryIds = new Set(firebaseEntries.map(e => e.id));
+      const entriesToDelete = localEntries.filter(entry => !firebaseEntryIds.has(entry.id));
+      
+      if (entriesToDelete.length > 0) {
+        console.log(`🗑️ Detectadas ${entriesToDelete.length} entradas deletadas no Firebase`);
+        for (const entry of entriesToDelete) {
+          try {
+            await database.deleteEntry(entry.id);
+            console.log(`🗑️ Entrada deletada localmente: ${entry.id}`);
+          } catch (error) {
+            console.warn(`⚠️ Erro ao deletar entrada ${entry.id}:`, error);
+          }
+        }
+        console.log(`✅ ${entriesToDelete.length} entradas deletadas localmente`);
+      }
+      
+      // 4. Atualizar estado da aplicação com dados do Firebase
+      const updatedFoods = await database.getAllFoods();
+      const updatedEntries = await database.getAllEntries();
+      const updatedUsers = await database.getAllUsers();
+      
+      // Atualizar estado da aplicação
+      useAppStore.setState({ foods: updatedFoods, entries: updatedEntries, users: updatedUsers });
+      
+      console.log('✅ Sincronização unidirecional concluída (FIREBASE → LOCAL)');
       setSyncStatus('success');
+      
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+      console.error('❌ Erro ao carregar dados do Firebase:', error);
       setSyncStatus('error');
     } finally {
       setIsLoading(false);
@@ -298,64 +220,30 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
     setSyncStatus('syncing');
     
     try {
-      // PRIMEIRO: Limpar duplicatas no IndexedDB antes de sincronizar
-      console.log('🧹 Limpando duplicatas locais...');
-      const { foodsRemoved, entriesRemoved } = await database.cleanDuplicatesBeforeSync();
+      // Carregar dados locais
+      await loadInitialData();
       
-      if (foodsRemoved > 0 || entriesRemoved > 0) {
-        console.log(`✅ Limpeza concluída: ${foodsRemoved} alimentos e ${entriesRemoved} entradas duplicadas removidas`);
-        // Recarregar dados após limpeza
-        await loadInitialData();
-      }
+      // Sincronizar com Firebase
+      const { foods, entries, users } = useAppStore.getState();
       
-      // Sincroniza usuários (Firebase é a fonte da verdade, não sobrescreve)
-      await firebaseSyncService.saveUsers(users);
-      console.log('✅ Usuários sincronizados');
-      
-      // Sincroniza entradas
-      const entries = await database.getAllEntries();
-      await firebaseSyncService.saveEntries(entries);
-      console.log(`✅ ${entries.length} entradas sincronizadas`);
-      
-      // Sincroniza alimentos
-      const foods = await database.getAllFoods();
+      console.log('🔄 Enviando dados para Firebase...');
       await firebaseSyncService.saveFoods(foods);
-      console.log(`✅ ${foods.length} alimentos sincronizados`);
+      await firebaseSyncService.saveEntries(entries);
+      await firebaseSyncService.saveUsers(users);
       
-      // Verificar se há alimentos que foram deletados localmente mas ainda existem no Firebase
-      console.log('🔍 Verificando alimentos deletados localmente...');
-      const firebaseFoods = await firebaseSyncService.loadFoods();
-      const localFoodIds = new Set(foods.map(f => f.id));
-      const deletedFoods = firebaseFoods.filter(f => !localFoodIds.has(f.id));
-      
-      if (deletedFoods.length > 0) {
-        console.log(`🗑️ Deletando ${deletedFoods.length} alimentos do Firebase...`);
-        for (const food of deletedFoods) {
-          try {
-            await firebaseSyncService.deleteFood(food.id);
-          } catch (error) {
-            console.error(`❌ Erro ao deletar alimento ${food.name}:`, error);
-          }
-        }
-        console.log(`✅ ${deletedFoods.length} alimentos deletados do Firebase`);
-      } else {
-        console.log('✅ Nenhum alimento deletado localmente encontrado');
-      }
-      
+      console.log('✅ Dados enviados para Firebase com sucesso');
       setSyncStatus('success');
     } catch (error) {
-      console.error('Erro ao salvar dados:', error);
+      console.error('❌ Erro ao enviar dados para Firebase:', error);
       setSyncStatus('error');
     } finally {
       setIsLoading(false);
     }
   };
 
-
-
   const getStatusColor = () => {
     switch (syncStatus) {
-      case 'syncing': return 'text-yellow-600';
+      case 'syncing': return 'text-blue-600';
       case 'success': return 'text-green-600';
       case 'error': return 'text-red-600';
       default: return isAuthenticated ? 'text-green-600' : 'text-gray-600';
@@ -371,173 +259,50 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
     }
   };
 
-  if (isOpen) {
-    return (
-      <Modal
-        isOpen={isOpen}
-        onClose={onClose}
-        title="🔄 Sincronização Firebase"
-        size="lg"
-      >
-        <div className="space-y-6">
-          {/* Status */}
-          <div className="text-center">
-            <div className={`text-lg font-medium ${getStatusColor()}`}>
-              {getStatusText()}
-            </div>
-            <div className="text-sm text-gray-600 mt-1">
-              {isAuthenticated ? 'Conectado ao Firebase' : 'Não conectado'}
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="space-y-4">
-            {!isAuthenticated ? (
-              <Button
-                onClick={handleGoogleLogin}
-                disabled={isLoading}
-                className="w-full"
-              >
-                {isLoading ? 'Conectando...' : '🔐 Entrar com Google'}
-              </Button>
-            ) : (
-              <div className="space-y-3">
-                <Button
-                  onClick={() => loadDataFromFirebase()}
-                  disabled={isLoading}
-                  className="w-full"
-                >
-                  {isLoading ? 'Carregando...' : '📥 Baixar Dados'}
-                </Button>
-                <Button
-                  onClick={saveDataToFirebase}
-                  disabled={isLoading}
-                  variant="secondary"
-                  className="w-full"
-                >
-                  {isLoading ? 'Enviando...' : '📤 Enviar Dados'}
-                </Button>
-                <Button
-                  onClick={handleLogout}
-                  variant="secondary"
-                  className="w-full"
-                >
-                  🚪 Sair
-                </Button>
-              </div>
-            )}
-          </div>
-
-
-
-          {/* Info */}
-          <div className="bg-blue-50 rounded-lg p-4">
-            <h4 className="font-medium text-blue-900 mb-2">Como Funciona</h4>
-            <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
-              <li>📱 <strong>Dados locais primeiro</strong> - carregamento rápido e offline</li>
-              <li>🔄 <strong>Sincronização automática</strong> - mudanças são salvas instantaneamente</li>
-              <li>☁️ <strong>Firebase sob demanda</strong> - carrega apenas quando necessário</li>
-              <li>🧹 <strong>Sem duplicações</strong> - verificação automática evita duplicatas</li>
-              <li>Qualquer usuário pode editar entradas de outros</li>
-            </ul>
-          </div>
-        </div>
-      </Modal>
-    );
-  }
+  if (!isOpen) return null;
 
   return (
-    <Card>
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">Sincronização</h3>
-          <p className={`text-sm ${getStatusColor()}`}>
-            {getStatusText()}
-          </p>
-        </div>
-        <div className="flex space-x-2">
-          <Button
-            onClick={() => setShowSyncModal(true)}
-            variant="secondary"
-            size="sm"
-            className="flex-1"
-          >
-            {isAuthenticated ? 'Gerenciar' : 'Conectar'}
-          </Button>
-        </div>
-      </div>
-
-      {/* Sync Modal */}
-      <Modal
-        isOpen={showSyncModal}
-        onClose={() => setShowSyncModal(false)}
-        title="🔄 Sincronização Firebase"
-        size="lg"
-      >
-        <div className="space-y-6">
-          {/* Status */}
-          <div className="text-center">
-            <div className={`text-lg font-medium ${getStatusColor()}`}>
+    <Modal isOpen={isOpen} onClose={onClose} title="Gerenciar Sincronização">
+      <div className="p-6">
+        <h2 className="text-xl font-semibold mb-4">Gerenciar Sincronização</h2>
+        
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-600">Status:</span>
+            <span className={`text-sm font-medium ${getStatusColor()}`}>
               {getStatusText()}
-            </div>
-            <div className="text-sm text-gray-600 mt-1">
-              {isAuthenticated ? 'Conectado ao Firebase' : 'Não conectado'}
-            </div>
+            </span>
           </div>
-
-          {/* Actions */}
-          <div className="space-y-4">
-            {!isAuthenticated ? (
+          
+          {!isAuthenticated ? (
+            <Button
+              onClick={handleGoogleLogin}
+              disabled={isLoading}
+              className="w-full"
+            >
+              {isLoading ? 'Entrando...' : 'Entrar com Google'}
+            </Button>
+          ) : (
+            <div className="space-y-2">
               <Button
-                onClick={handleGoogleLogin}
+                onClick={saveDataToFirebase}
                 disabled={isLoading}
                 className="w-full"
               >
-                {isLoading ? 'Conectando...' : '🔐 Entrar com Google'}
+                {isLoading ? 'Enviando...' : 'Enviar Dados'}
               </Button>
-            ) : (
-              <div className="space-y-3">
-                <Button
-                  onClick={() => loadDataFromFirebase()}
-                  disabled={isLoading}
-                  className="w-full"
-                >
-                  {isLoading ? 'Carregando...' : '📥 Baixar Dados'}
-                </Button>
-                <Button
-                  onClick={saveDataToFirebase}
-                  disabled={isLoading}
-                  variant="secondary"
-                  className="w-full"
-                >
-                  {isLoading ? 'Enviando...' : '📤 Enviar Dados'}
-                </Button>
-                <Button
-                  onClick={handleLogout}
-                  variant="secondary"
-                  className="w-full"
-                >
-                  🚪 Sair
-                </Button>
-              </div>
-            )}
-          </div>
-
-
-
-          {/* Info */}
-          <div className="bg-blue-50 rounded-lg p-4">
-            <h4 className="font-medium text-blue-900 mb-2">Como Funciona</h4>
-            <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
-              <li>📱 <strong>Dados locais primeiro</strong> - carregamento rápido e offline</li>
-              <li>🔄 <strong>Sincronização automática</strong> - mudanças são salvas instantaneamente</li>
-              <li>☁️ <strong>Firebase sob demanda</strong> - carrega apenas quando necessário</li>
-              <li>🧹 <strong>Sem duplicações</strong> - verificação automática evita duplicatas</li>
-              <li>Qualquer usuário pode editar entradas de outros</li>
-            </ul>
-          </div>
+              
+              <Button
+                onClick={handleLogout}
+                variant="secondary"
+                className="w-full"
+              >
+                Sair
+              </Button>
+            </div>
+          )}
         </div>
-      </Modal>
-    </Card>
+      </div>
+    </Modal>
   );
 };

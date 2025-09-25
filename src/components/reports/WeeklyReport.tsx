@@ -62,13 +62,14 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
   const activeDays = dailyData.filter(day => day.kcal > 0).length;
   const activeDaysCount = Math.max(activeDays, 1); // Pelo menos 1 dia para evitar divisão por zero
 
-  // Calcular metas semanais baseadas em dias ativos
+  // Calcular metas semanais baseadas em dias ativos e fator semanal
+  const weeklyFactor = currentUserData?.weeklyGoalFactor || 1.0;
   const weeklyGoals = {
-    protein_g: dailyGoal.protein_g * activeDaysCount,
-    carbs_g: dailyGoal.carbs_g * activeDaysCount,
-    fat_g: dailyGoal.fat_g * activeDaysCount,
-    kcal: dailyGoal.kcal * activeDaysCount,
-    water_ml: dailyGoal.water_ml * activeDaysCount
+    protein_g: dailyGoal.protein_g * activeDaysCount * weeklyFactor,
+    carbs_g: dailyGoal.carbs_g * activeDaysCount * weeklyFactor,
+    fat_g: dailyGoal.fat_g * activeDaysCount * weeklyFactor,
+    kcal: dailyGoal.kcal * activeDaysCount * weeklyFactor,
+    water_ml: dailyGoal.water_ml * activeDaysCount * weeklyFactor
   };
 
   // Calcular médias diárias
