@@ -18,13 +18,15 @@ function App() {
     error, 
     updateEntry, 
     deleteEntry,
-    getCurrentUserTheme
+    getCurrentUserTheme,
+    isAuthenticated
   } = useAppStore();
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showFoodsManager, setShowFoodsManager] = useState(false);
   const [showReports, setShowReports] = useState(false);
   const [showAddWater, setShowAddWater] = useState(false);
+  const [showFirebaseSync, setShowFirebaseSync] = useState(false);
   const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
   const [isFirebaseLoading, setIsFirebaseLoading] = useState(false);
 
@@ -50,16 +52,22 @@ function App() {
       setShowAddWater(true);
     };
 
+    const handleOpenFirebaseSync = () => {
+      setShowFirebaseSync(true);
+    };
+
     window.addEventListener('openFoodEntry', handleOpenFoodEntry);
     window.addEventListener('openFoodsManager', handleOpenFoodsManager);
     window.addEventListener('openReports', handleOpenReports);
     window.addEventListener('openAddWater', handleOpenAddWater);
+    window.addEventListener('openFirebaseSync', handleOpenFirebaseSync);
 
     return () => {
       window.removeEventListener('openFoodEntry', handleOpenFoodEntry);
       window.removeEventListener('openFoodsManager', handleOpenFoodsManager);
       window.removeEventListener('openReports', handleOpenReports);
       window.removeEventListener('openAddWater', handleOpenAddWater);
+      window.removeEventListener('openFirebaseSync', handleOpenFirebaseSync);
     };
   }, []);
 
@@ -153,12 +161,41 @@ function App() {
         onClose={handleCloseModals}
       />
 
-      <FirebaseSync onLoadingChange={handleFirebaseLoading} />
+      <FirebaseSync 
+        isOpen={showFirebaseSync}
+        onClose={() => setShowFirebaseSync(false)}
+        onLoadingChange={handleFirebaseLoading} 
+      />
 
       <LoadingModal
         isOpen={isFirebaseLoading}
         message="Sincronizando dados do Firebase..."
       />
+
+      {/* Footer de Sincronização */}
+      <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2 z-40">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <div className={`w-2 h-2 rounded-full ${
+              isAuthenticated ? 'bg-green-500' : 'bg-gray-400'
+            }`} />
+            <span className={`text-sm ${
+              isAuthenticated ? 'text-green-600' : 'text-gray-500'
+            }`}>
+              {isAuthenticated ? 'Conectado' : 'Pronto para sincronizar'}
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              const event = new CustomEvent('openFirebaseSync');
+              window.dispatchEvent(event);
+            }}
+            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+          >
+            {isAuthenticated ? 'Gerenciar' : 'Conectar'}
+          </button>
+        </div>
+      </footer>
 
       <Toaster position="top-right" />
     </div>

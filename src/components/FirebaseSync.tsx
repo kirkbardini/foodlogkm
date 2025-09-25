@@ -285,8 +285,17 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
           ) : (
             <div className="space-y-2">
               <Button
+                onClick={loadDataFromFirebase}
+                disabled={isLoading}
+                className="w-full"
+              >
+                {isLoading ? 'Baixando...' : 'Baixar Dados'}
+              </Button>
+              
+              <Button
                 onClick={saveDataToFirebase}
                 disabled={isLoading}
+                variant="secondary"
                 className="w-full"
               >
                 {isLoading ? 'Enviando...' : 'Enviar Dados'}
