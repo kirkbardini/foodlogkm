@@ -16,11 +16,13 @@ export const ReportsDashboard: React.FC<ReportsDashboardProps> = ({
   onClose
 }) => {
   const [activeReport, setActiveReport] = useState<ReportType>('daily');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(() => {
+    return new Date().toISOString().split('T')[0];
+  });
   const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
 
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedDate(e.target.value);
+  const handleDailyDateChange = (newDate: string) => {
+    setSelectedDate(newDate);
   };
 
   const handleWeekChange = (newWeekStart: Date) => {
@@ -36,7 +38,7 @@ export const ReportsDashboard: React.FC<ReportsDashboardProps> = ({
   const renderReport = () => {
     switch (activeReport) {
       case 'daily':
-        return <DailyReport date={selectedDate} />;
+        return <DailyReport date={selectedDate} onDateChange={handleDailyDateChange} />;
       case 'weekly':
         return <WeeklyReport weekStart={weekStart} onWeekChange={handleWeekChange} />;
       case 'monthly':
@@ -86,20 +88,7 @@ export const ReportsDashboard: React.FC<ReportsDashboardProps> = ({
           </nav>
         </div>
 
-        {/* Date Selector for Daily Report */}
-        {activeReport === 'daily' && (
-          <div className="flex items-center space-x-4">
-            <label className="text-sm font-medium text-gray-700">
-              Data:
-            </label>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={handleDateChange}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-        )}
+        {/* Date Selector removido - navegação agora é feita pelos botões no DailyReport */}
 
         {/* Report Content */}
         <div className="min-h-[600px]">

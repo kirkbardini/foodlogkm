@@ -93,18 +93,20 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
     const user = firebaseSyncService.getCurrentUser();
     if (user) {
       setAuthenticated(true);
-      console.log('✅ Usuário autenticado, verificando sincronização...');
+      console.log('✅ Usuário autenticado, sincronizando...');
       
       // Mostrar loading durante verificação
       onLoadingChange?.(true);
       
-      // Sincronização automática ativa
-      
-      // Simular tempo de carregamento
-      setTimeout(() => {
+      try {
+        // Sincronização real - carregar dados do Firebase
+        await loadDataFromFirebase();
+      } catch (error) {
+        console.error('❌ Erro na sincronização:', error);
+        setSyncStatus('error');
+      } finally {
         onLoadingChange?.(false);
-        console.log('✅ Sincronização concluída com sucesso');
-      }, 1000);
+      }
     }
   };
 
@@ -119,10 +121,14 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
         setAuthenticated(true);
         console.log('✅ Login realizado, verificando sincronização...');
         
-        // Sincronização automática ativa
-        setTimeout(() => {
+        try {
+          // Sincronização real - carregar dados do Firebase
+          await loadDataFromFirebase();
           console.log('✅ Sincronização concluída com sucesso');
-        }, 1000);
+        } catch (error) {
+          console.error('❌ Erro na sincronização:', error);
+          setSyncStatus('error');
+        }
       } else {
         setSyncStatus('error');
       }
@@ -150,10 +156,7 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
       if (needsFoods === undefined || needsEntries === undefined) {
         const { entries: firebaseEntries, foods: firebaseFoods, users: firebaseUsers } = await firebaseSyncService.loadAllUsersData();
         
-        console.log(`📊 Dados carregados: ${firebaseEntries.length} entradas, ${firebaseFoods.length} alimentos, ${firebaseUsers.length} usuários`);
-        
-        // Atualiza alimentos locais com os do Firebase
-        console.log(`🔄 Sincronizando ${firebaseFoods.length} alimentos...`);
+        console.log(`📊 Carregando dados (FIREBASE): ${firebaseEntries.length} entradas, ${firebaseFoods.length} alimentos, ${firebaseUsers.length} usuários`);
         
         for (const firebaseFood of firebaseFoods) {
           try {
@@ -179,7 +182,6 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
         
         // Atualiza entradas (merge com existentes) - permite edição de qualquer usuário
         const allEntries = await database.getAllEntries();
-        console.log(`📊 Entradas: ${allEntries.length} locais, ${firebaseEntries.length} Firebase`);
         
         // Verifica quais entradas já existem localmente
         const existingEntryIds = new Set(allEntries.map(e => e.id));
@@ -210,7 +212,7 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
             const needsMigration = !user.goals.water_ml || user.goals.water_ml === 0;
             
             if (needsMigration) {
-              console.log(`🔧 Migrando usuário ${user.name} - aplicando metas padrão`);
+              // Migrando usuário - aplicando metas padrão
               return {
                 ...user,
                 goals: {
@@ -249,13 +251,11 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
             }
           }
           
-          if (foodsUpdated > 0 || foodsAdded > 0) {
-            console.log(`🍎 Alimentos sincronizados: ${foodsAdded} novos, ${foodsUpdated} atualizados`);
-          }
+          // Alimentos sincronizados (FIREBASE → LOCAL)
         }
         
         if (needsEntries) {
-          console.log('📝 Carregando apenas entradas do Firebase...');
+          // Carregando apenas entradas (FIREBASE)
           const currentUser = firebaseSyncService.getCurrentUser();
           if (currentUser) {
             const userId = firebaseSyncService.getUserIdFromEmail(currentUser.email || '');
@@ -279,9 +279,7 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
               }
             }
             
-            if (entriesUpdated > 0 || entriesAdded > 0) {
-              console.log(`📝 Entradas sincronizadas: ${entriesAdded} novas, ${entriesUpdated} atualizadas`);
-            }
+            // Entradas sincronizadas (FIREBASE → LOCAL)
           }
         }
       }

@@ -1,16 +1,20 @@
 import React from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { Card } from '../ui/Card';
+import { Button } from '../ui/Button';
 import { CompactNutritionCard } from '../ui/CompactNutritionCard';
 import { InsightsPanel } from './InsightsPanel';
 import { MealDistributionChart } from './MealDistributionChart';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { format, addDays, subDays, isToday, isYesterday, isTomorrow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface DailyReportProps {
   date: string;
+  onDateChange?: (newDate: string) => void;
 }
 
-export const DailyReport: React.FC<DailyReportProps> = ({ date }) => {
+export const DailyReport: React.FC<DailyReportProps> = ({ date, onDateChange }) => {
   const { currentUser, users, getEntriesForDate } = useAppStore();
   
   const currentUserData = users.find(u => u.id === currentUser);
@@ -37,6 +41,57 @@ export const DailyReport: React.FC<DailyReportProps> = ({ date }) => {
     return `${day}/${month}/${year}`;
   };
 
+  // Funções de navegação de data
+  const handlePreviousDay = () => {
+    if (onDateChange) {
+      const currentDate = new Date(date + 'T00:00:00');
+      const previousDate = subDays(currentDate, 1);
+      const newDate = format(previousDate, 'yyyy-MM-dd');
+      onDateChange(newDate);
+    }
+  };
+
+  const handleNextDay = () => {
+    if (onDateChange) {
+      const currentDate = new Date(date + 'T00:00:00');
+      const nextDate = addDays(currentDate, 1);
+      const newDate = format(nextDate, 'yyyy-MM-dd');
+      onDateChange(newDate);
+    }
+  };
+
+  const handleToday = () => {
+    if (onDateChange) {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      onDateChange(today);
+    }
+  };
+
+  // Verificar se é hoje, ontem ou amanhã
+  const currentDate = new Date(date + 'T00:00:00');
+  const isCurrentToday = isToday(currentDate);
+  const isCurrentYesterday = isYesterday(currentDate);
+  const isCurrentTomorrow = isTomorrow(currentDate);
+
+  // Formatação da data com dia da semana
+  const formatDateWithWeekday = (dateISO: string) => {
+    const date = new Date(dateISO + 'T00:00:00');
+    const dayName = format(date, 'EEEE', { locale: ptBR });
+    const dayNumber = format(date, 'dd');
+    const month = format(date, 'MMM', { locale: ptBR });
+    const year = format(date, 'yyyy');
+    
+    return {
+      dayName: dayName.charAt(0).toUpperCase() + dayName.slice(1),
+      dayNumber,
+      month,
+      year,
+      fullDate: formatDateBR(dateISO)
+    };
+  };
+
+  const dateInfo = formatDateWithWeekday(date);
+
   const macroData = [
     { name: 'Proteínas', value: dayTotals.protein_g, color: '#3B82F6' },
     { name: 'Carboidratos', value: dayTotals.carbs_g, color: '#10B981' },
@@ -46,10 +101,58 @@ export const DailyReport: React.FC<DailyReportProps> = ({ date }) => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900">Relatório Diário</h2>
-        <p className="text-gray-600">{formatDateBR(date)}</p>
+      {/* Header compacto com navegação */}
+      <div className="bg-white rounded-lg border p-4">
+        <div className="flex items-center justify-between">
+          {/* Título */}
+          <div className="flex-1">
+            <h2 className="text-xl font-bold text-gray-900">Relatório Diário</h2>
+            <div className="text-sm text-gray-600 mt-1">
+              {dateInfo.dayName}, {dateInfo.dayNumber} de {dateInfo.month} de {dateInfo.year}
+              {isCurrentToday && (
+                <span className="ml-2 text-blue-600 font-medium">• Hoje</span>
+              )}
+              {isCurrentYesterday && (
+                <span className="ml-2 text-gray-500">• Ontem</span>
+              )}
+              {isCurrentTomorrow && (
+                <span className="ml-2 text-gray-500">• Amanhã</span>
+              )}
+            </div>
+          </div>
+          
+          {/* Navegação compacta */}
+          <div className="flex items-center space-x-2">
+            <Button
+              onClick={handlePreviousDay}
+              variant="secondary"
+              size="sm"
+              className="px-2 py-1 text-sm"
+            >
+              ←
+            </Button>
+            
+            {!isCurrentToday && (
+              <Button
+                onClick={handleToday}
+                variant="primary"
+                size="sm"
+                className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Hoje
+              </Button>
+            )}
+            
+            <Button
+              onClick={handleNextDay}
+              variant="secondary"
+              size="sm"
+              className="px-2 py-1 text-sm"
+            >
+              →
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Main Metrics with Compact Nutrition Cards */}

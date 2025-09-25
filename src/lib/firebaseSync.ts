@@ -69,6 +69,7 @@ class FirebaseSyncService {
 
   // Foods
   async saveFood(food: FoodItem): Promise<void> {
+    // Salvando alimento (LOCAL → FIREBASE)
     const now = Date.now();
     
     // Filtrar valores undefined antes de enviar para o Firebase
@@ -94,7 +95,7 @@ class FirebaseSyncService {
   }
 
   async saveFoods(foods: FoodItem[]): Promise<void> {
-    console.log(`🍎 Salvando ${foods.length} alimentos no Firebase...`);
+    console.log(`🍎 Salvando ${foods.length} alimentos (LOCAL → FIREBASE)...`);
     
     // Primeiro, carregar todos os alimentos existentes do Firebase
     const existingFoods = await this.loadFoods();
@@ -226,7 +227,7 @@ class FirebaseSyncService {
     const foodsQuery = query(collection(db, 'foods'), orderBy('name'));
     const snapshot = await getDocs(foodsQuery);
     
-    console.log(`📦 Carregando ${snapshot.docs.length} alimentos do Firebase`);
+    // Carregando alimentos (FIREBASE)
     
     const foods = snapshot.docs.map(doc => {
       const data = doc.data();
@@ -247,17 +248,18 @@ class FirebaseSyncService {
       return food;
     });
     
-    console.log(`✅ ${foods.length} alimentos carregados`);
+    // Alimentos carregados (FIREBASE)
     return foods;
   }
 
   async deleteFood(id: string): Promise<void> {
     await deleteDoc(doc(db, 'foods', id));
-    console.log(`🗑️ Alimento deletado: ${id}`);
+    // Alimento deletado (FIREBASE)
   }
 
   // Entries
   async saveEntry(entry: Entry): Promise<void> {
+    // Salvando entrada (LOCAL → FIREBASE)
     // Filtrar valores undefined antes de enviar para o Firebase
     const entryData: any = {
       id: entry.id,
@@ -284,7 +286,7 @@ class FirebaseSyncService {
   }
 
   async saveEntries(entries: Entry[]): Promise<void> {
-    console.log(`📝 Salvando ${entries.length} entradas no Firebase...`);
+    console.log(`📝 Salvando ${entries.length} entradas (LOCAL → FIREBASE)...`);
     
     // Primeiro, carregar todas as entradas existentes do Firebase
     const existingEntries = await this.loadAllEntries();
@@ -379,7 +381,7 @@ class FirebaseSyncService {
 
   // Users
   async saveUsers(users: UserPrefs[]): Promise<void> {
-    console.log('👥 Salvando usuários no Firebase:', users);
+    console.log('👥 Salvando usuários (LOCAL → FIREBASE):', users);
     
     // Primeiro, carregar todos os usuários existentes do Firebase
     const existingUsers = await this.loadUsers();

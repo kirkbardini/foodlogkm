@@ -32,14 +32,70 @@ export const AnimatedProgressBar: React.FC<AnimatedProgressBarProps> = ({
     return () => clearTimeout(timer);
   }, [value]);
 
-  const percentage = max > 0 ? Math.min((animatedValue / max) * 100, 100) : 0;
-  const status = percentage >= 100 ? 'excellent' : percentage >= 80 ? 'good' : percentage >= 60 ? 'warning' : 'poor';
+  const realPercentage = max > 0 ? (animatedValue / max) * 100 : 0;
+  const barPercentage = Math.min(realPercentage, 100); // Barra limitada a 100%
+  
+  // Função para determinar status baseado no tipo de macro
+  const getStatus = (percentage: number, macroType: string) => {
+    switch (macroType.toLowerCase()) {
+      case 'proteína':
+      case 'proteínas':
+        if (percentage < 85) return 'very-low';
+        if (percentage <= 94) return 'low';
+        if (percentage <= 110) return 'target';
+        if (percentage <= 120) return 'above';
+        return 'excess';
+      
+      case 'carboidrato':
+      case 'carboidratos':
+        if (percentage < 70) return 'very-low';
+        if (percentage <= 84) return 'low';
+        if (percentage <= 100) return 'target';
+        if (percentage <= 105) return 'above';
+        return 'excess';
+      
+      case 'gordura':
+      case 'gorduras':
+        if (percentage < 70) return 'very-low';
+        if (percentage <= 84) return 'low';
+        if (percentage <= 100) return 'target';
+        if (percentage <= 110) return 'above';
+        return 'excess';
+      
+      case 'caloria':
+      case 'calorias':
+        if (percentage < 90) return 'very-low';
+        if (percentage <= 96) return 'low';
+        if (percentage <= 103) return 'target';
+        if (percentage <= 107) return 'above';
+        return 'excess';
+      
+      case 'água':
+      case 'agua':
+        if (percentage < 75) return 'very-low';
+        if (percentage <= 90) return 'low';
+        if (percentage <= 130) return 'target';
+        if (percentage <= 150) return 'above';
+        return 'excess';
+      
+      default:
+        // Fallback para outros tipos
+        if (percentage < 60) return 'very-low';
+        if (percentage <= 79) return 'low';
+        if (percentage <= 100) return 'target';
+        if (percentage <= 110) return 'above';
+        return 'excess';
+    }
+  };
+  
+  const status = getStatus(realPercentage, label);
 
   const statusConfig = {
-    excellent: { icon: '✅', text: 'Meta atingida!', color: 'text-green-600' },
-    good: { icon: '👍', text: 'Muito bom!', color: 'text-green-500' },
-    warning: { icon: '⚠️', text: 'Quase lá!', color: 'text-yellow-500' },
-    poor: { icon: '📉', text: 'Precisa melhorar', color: 'text-red-500' }
+    'very-low': { icon: '🔴', text: 'Muito baixo', color: 'text-red-600' },
+    'low': { icon: '🟠', text: 'Baixo', color: 'text-orange-500' },
+    'target': { icon: '✅', text: 'Meta', color: 'text-green-600' },
+    'above': { icon: '🟡', text: 'Acima', color: 'text-yellow-600' },
+    'excess': { icon: '⚠️', text: 'Excesso', color: 'text-red-500' }
   };
 
   const currentStatus = statusConfig[status];
@@ -53,12 +109,8 @@ export const AnimatedProgressBar: React.FC<AnimatedProgressBarProps> = ({
           {animatedValue.toFixed(1)}{unit}
         </div>
         {showPercentage && (
-          <div className={`text-sm font-medium ${
-            percentage >= 100 ? 'text-green-600' : 
-            percentage >= 80 ? 'text-green-500' : 
-            percentage >= 60 ? 'text-yellow-500' : 'text-red-500'
-          }`}>
-            {percentage.toFixed(0)}% da meta
+          <div className={`text-sm font-medium ${currentStatus.color}`}>
+            {realPercentage.toFixed(0)}% da meta
           </div>
         )}
       </div>
@@ -69,7 +121,7 @@ export const AnimatedProgressBar: React.FC<AnimatedProgressBarProps> = ({
           <div
             className={`h-full rounded-full transition-all duration-1000 ease-out ${color}`}
             style={{
-              width: isVisible ? `${percentage}%` : '0%',
+              width: isVisible ? `${barPercentage}%` : '0%',
               transition: 'width 1s ease-out'
             }}
           />
