@@ -37,12 +37,12 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
       protein_g: sum.protein_g + entry.protein_g,
       carbs_g: sum.carbs_g + entry.carbs_g,
       fat_g: sum.fat_g + entry.fat_g,
-      kcal: sum.kcal + entry.kcal,
+      kcal: Math.round(sum.kcal + entry.kcal),
       water_ml: sum.water_ml + (entry.foodId === 'agua' ? entry.qty : 0)
     }), { protein_g: 0, carbs_g: 0, fat_g: 0, kcal: 0, water_ml: 0 });
     
     const weeklyFactor = currentUserData?.weeklyGoalFactor || 1.0;
-    const adjustedDailyGoal = dailyGoal.kcal * weeklyFactor;
+    const adjustedDailyGoal = Math.round(dailyGoal.kcal * weeklyFactor);
     
     return {
       date: dateISO,
@@ -66,14 +66,23 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
   const activeDays = dailyData.filter(day => day.kcal > 0).length;
   const activeDaysCount = Math.max(activeDays, 1); // Pelo menos 1 dia para evitar divisão por zero
 
+  // Calcular média semanal considerando apenas dias ativos
+  const weeklyAverage = Math.round(weekTotals.kcal / activeDaysCount);
+
+  // Adicionar média aos dados diários
+  const dailyDataWithAverage = dailyData.map(day => ({
+    ...day,
+    average: weeklyAverage
+  }));
+
   // Calcular metas semanais baseadas em dias ativos e fator semanal
   const weeklyFactor = currentUserData?.weeklyGoalFactor || 1.0;
   const weeklyGoals = {
-    protein_g: dailyGoal.protein_g * activeDaysCount * weeklyFactor,
-    carbs_g: dailyGoal.carbs_g * activeDaysCount * weeklyFactor,
-    fat_g: dailyGoal.fat_g * activeDaysCount * weeklyFactor,
-    kcal: dailyGoal.kcal * activeDaysCount * weeklyFactor,
-    water_ml: dailyGoal.water_ml * activeDaysCount * weeklyFactor
+    protein_g: Math.round(dailyGoal.protein_g * activeDaysCount * weeklyFactor),
+    carbs_g: Math.round(dailyGoal.carbs_g * activeDaysCount * weeklyFactor),
+    fat_g: Math.round(dailyGoal.fat_g * activeDaysCount * weeklyFactor),
+    kcal: Math.round(dailyGoal.kcal * activeDaysCount * weeklyFactor),
+    water_ml: Math.round(dailyGoal.water_ml * activeDaysCount * weeklyFactor)
   };
 
   // Calcular médias diárias
@@ -231,7 +240,7 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Calorias Diárias</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={dailyData}>
+              <LineChart data={dailyDataWithAverage}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
                   dataKey="dayName" 
@@ -242,6 +251,7 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
                   formatter={(value, name) => {
                     if (name === 'kcal') return [`${value} kcal`, 'Calorias Consumidas'];
                     if (name === 'goal') return [`${value} kcal`, 'Meta Diária'];
+                    if (name === 'average') return [`${value} kcal`, 'Média Semanal'];
                     return [`${value} kcal`, name];
                   }}
                   labelFormatter={(label) => `Dia: ${label}`}
@@ -259,6 +269,14 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
                   stroke="#10B981" 
                   strokeWidth={2}
                   strokeDasharray="5 5"
+                  dot={false}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="average" 
+                  stroke="#EF4444" 
+                  strokeWidth={2}
+                  strokeDasharray="3 3"
                   dot={false}
                 />
               </LineChart>

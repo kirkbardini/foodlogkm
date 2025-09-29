@@ -37,7 +37,7 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({ monthStart, onMont
       protein_g: sum.protein_g + entry.protein_g,
       carbs_g: sum.carbs_g + entry.carbs_g,
       fat_g: sum.fat_g + entry.fat_g,
-      kcal: sum.kcal + entry.kcal,
+      kcal: Math.round(sum.kcal + entry.kcal),
       water_ml: sum.water_ml + (entry.foodId === 'agua' ? entry.qty : 0)
     }), { protein_g: 0, carbs_g: 0, fat_g: 0, kcal: 0, water_ml: 0 });
     
@@ -62,14 +62,17 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({ monthStart, onMont
   const activeDays = dailyData.filter(day => day.kcal > 0).length;
   const activeDaysCount = Math.max(activeDays, 1); // Pelo menos 1 dia para evitar divisão por zero
 
+  // Calcular média mensal considerando apenas dias ativos
+  const monthlyAverage = Math.round(monthTotals.kcal / activeDaysCount);
+
   // Calcular metas mensais baseadas em dias ativos e fator mensal
   const monthlyFactor = currentUserData?.monthlyGoalFactor || 1.0;
   const monthlyGoals = {
-    protein_g: dailyGoal.protein_g * activeDaysCount * monthlyFactor,
-    carbs_g: dailyGoal.carbs_g * activeDaysCount * monthlyFactor,
-    fat_g: dailyGoal.fat_g * activeDaysCount * monthlyFactor,
-    kcal: dailyGoal.kcal * activeDaysCount * monthlyFactor,
-    water_ml: dailyGoal.water_ml * activeDaysCount * monthlyFactor
+    protein_g: Math.round(dailyGoal.protein_g * activeDaysCount * monthlyFactor),
+    carbs_g: Math.round(dailyGoal.carbs_g * activeDaysCount * monthlyFactor),
+    fat_g: Math.round(dailyGoal.fat_g * activeDaysCount * monthlyFactor),
+    kcal: Math.round(dailyGoal.kcal * activeDaysCount * monthlyFactor),
+    water_ml: Math.round(dailyGoal.water_ml * activeDaysCount * monthlyFactor)
   };
 
   // Calcular médias diárias
@@ -116,20 +119,21 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({ monthStart, onMont
   // Agrupar dados por semana para o gráfico
   const weeklyData = [];
   const weeklyFactor = currentUserData?.weeklyGoalFactor || 1.0;
-  const weeklyGoal = dailyGoal.kcal * weeklyFactor * 7; // Meta semanal = kcal_goal * weeklyGoalFactor * 7
+  const weeklyGoal = Math.round(dailyGoal.kcal * weeklyFactor * 7); // Meta semanal = kcal_goal * weeklyGoalFactor * 7
   for (let i = 0; i < dailyData.length; i += 7) {
     const weekDays = dailyData.slice(i, i + 7);
     const weekTotals = weekDays.reduce((sum, day) => ({
       protein_g: sum.protein_g + day.protein_g,
       carbs_g: sum.carbs_g + day.carbs_g,
       fat_g: sum.fat_g + day.fat_g,
-      kcal: sum.kcal + day.kcal,
+      kcal: Math.round(sum.kcal + day.kcal),
       water_ml: sum.water_ml + day.water_ml
     }), { protein_g: 0, carbs_g: 0, fat_g: 0, kcal: 0, water_ml: 0 });
     
     weeklyData.push({
       week: `Semana ${Math.floor(i / 7) + 1}`,
       goal: weeklyGoal,
+      average: monthlyAverage, // Média mensal por semana
       ...weekTotals
     });
   }
@@ -258,6 +262,7 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({ monthStart, onMont
                   formatter={(value, name) => {
                     if (name === 'kcal') return [`${value} kcal`, 'Calorias Consumidas'];
                     if (name === 'goal') return [`${value} kcal`, 'Meta Semanal'];
+                    if (name === 'average') return [`${value} kcal`, 'Média Mensal'];
                     return [`${value} kcal`, name];
                   }}
                   labelFormatter={(label) => `Semana: ${label}`}
@@ -275,6 +280,14 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({ monthStart, onMont
                   stroke="#10B981" 
                   strokeWidth={2}
                   strokeDasharray="5 5"
+                  dot={false}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="average" 
+                  stroke="#EF4444" 
+                  strokeWidth={2}
+                  strokeDasharray="3 3"
                   dot={false}
                 />
               </LineChart>
