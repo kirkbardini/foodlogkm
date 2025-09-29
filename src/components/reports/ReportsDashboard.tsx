@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { DailyReport } from './DailyReport';
 import { WeeklyReport } from './WeeklyReport';
-import { startOfWeek } from 'date-fns';
+import { MonthlyReport } from './MonthlyReport';
+import { startOfWeek, startOfMonth } from 'date-fns';
 
 interface ReportsDashboardProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export const ReportsDashboard: React.FC<ReportsDashboardProps> = ({
     return new Date().toISOString().split('T')[0];
   });
   const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [monthStart, setMonthStart] = useState(startOfMonth(new Date()));
 
   const handleDailyDateChange = (newDate: string) => {
     setSelectedDate(newDate);
@@ -27,6 +29,10 @@ export const ReportsDashboard: React.FC<ReportsDashboardProps> = ({
 
   const handleWeekChange = (newWeekStart: Date) => {
     setWeekStart(newWeekStart);
+  };
+
+  const handleMonthChange = (newMonthStart: Date) => {
+    setMonthStart(newMonthStart);
   };
 
   const reportTabs = [
@@ -42,17 +48,7 @@ export const ReportsDashboard: React.FC<ReportsDashboardProps> = ({
       case 'weekly':
         return <WeeklyReport weekStart={weekStart} onWeekChange={handleWeekChange} />;
       case 'monthly':
-        return (
-          <div className="text-center py-8">
-            <div className="text-4xl mb-4">📈</div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Relatório Mensal
-            </h3>
-            <p className="text-gray-600">
-              Em desenvolvimento...
-            </p>
-          </div>
-        );
+        return <MonthlyReport monthStart={monthStart} onMonthChange={handleMonthChange} />;
       default:
         return null;
     }

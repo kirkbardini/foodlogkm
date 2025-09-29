@@ -5,19 +5,19 @@ import { CompactNutritionCard } from '../ui/CompactNutritionCard';
 import { Button } from '../ui/Button';
 import { formatNumber } from '../../lib/calculations';
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { format, startOfWeek, endOfWeek, addDays, subDays } from 'date-fns';
+import { format, startOfMonth, endOfMonth, addDays, subMonths, addMonths, eachDayOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-interface WeeklyReportProps {
-  weekStart: Date;
-  onWeekChange: (newWeekStart: Date) => void;
+interface MonthlyReportProps {
+  monthStart: Date;
+  onMonthChange: (newMonthStart: Date) => void;
 }
 
-export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekChange }) => {
+export const MonthlyReport: React.FC<MonthlyReportProps> = ({ monthStart, onMonthChange }) => {
   const { currentUser, users, getEntriesForDateRange } = useAppStore();
   
   const currentUserData = users.find(u => u.id === currentUser);
-  const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 }); // Segunda-feira
+  const monthEnd = endOfMonth(monthStart);
   
   const dailyGoal = currentUserData?.goals || {
     protein_g: 160,
@@ -27,9 +27,9 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
     water_ml: 3000
   };
 
-  // Gerar dados dos 7 dias da semana
-  const dailyData = Array.from({ length: 7 }, (_, i) => {
-    const date = addDays(weekStart, i);
+  // Gerar dados de todos os dias do mês
+  const monthDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const dailyData = monthDays.map(date => {
     const dateISO = format(date, 'yyyy-MM-dd');
     const entries = getEntriesForDateRange(currentUser, dateISO, dateISO);
     
@@ -41,20 +41,16 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
       water_ml: sum.water_ml + (entry.foodId === 'agua' ? entry.qty : 0)
     }), { protein_g: 0, carbs_g: 0, fat_g: 0, kcal: 0, water_ml: 0 });
     
-    const weeklyFactor = currentUserData?.weeklyGoalFactor || 1.0;
-    const adjustedDailyGoal = dailyGoal.kcal * weeklyFactor;
-    
     return {
       date: dateISO,
       dayName: format(date, 'EEE', { locale: ptBR }),
       dayNumber: format(date, 'dd'),
-      goal: adjustedDailyGoal,
       ...totals
     };
   });
 
-  // Calcular totais da semana
-  const weekTotals = dailyData.reduce((sum, day) => ({
+  // Calcular totais do mês
+  const monthTotals = dailyData.reduce((sum, day) => ({
     protein_g: sum.protein_g + day.protein_g,
     carbs_g: sum.carbs_g + day.carbs_g,
     fat_g: sum.fat_g + day.fat_g,
@@ -66,23 +62,23 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
   const activeDays = dailyData.filter(day => day.kcal > 0).length;
   const activeDaysCount = Math.max(activeDays, 1); // Pelo menos 1 dia para evitar divisão por zero
 
-  // Calcular metas semanais baseadas em dias ativos e fator semanal
-  const weeklyFactor = currentUserData?.weeklyGoalFactor || 1.0;
-  const weeklyGoals = {
-    protein_g: dailyGoal.protein_g * activeDaysCount * weeklyFactor,
-    carbs_g: dailyGoal.carbs_g * activeDaysCount * weeklyFactor,
-    fat_g: dailyGoal.fat_g * activeDaysCount * weeklyFactor,
-    kcal: dailyGoal.kcal * activeDaysCount * weeklyFactor,
-    water_ml: dailyGoal.water_ml * activeDaysCount * weeklyFactor
+  // Calcular metas mensais baseadas em dias ativos e fator mensal
+  const monthlyFactor = currentUserData?.monthlyGoalFactor || 1.0;
+  const monthlyGoals = {
+    protein_g: dailyGoal.protein_g * activeDaysCount * monthlyFactor,
+    carbs_g: dailyGoal.carbs_g * activeDaysCount * monthlyFactor,
+    fat_g: dailyGoal.fat_g * activeDaysCount * monthlyFactor,
+    kcal: dailyGoal.kcal * activeDaysCount * monthlyFactor,
+    water_ml: dailyGoal.water_ml * activeDaysCount * monthlyFactor
   };
 
   // Calcular médias diárias
-  const weekMetrics = {
-    totalCalories: weekTotals.kcal,
-    avgCalories: weekTotals.kcal / activeDaysCount,
-    totalWater: weekTotals.water_ml,
-    avgWater: weekTotals.water_ml / activeDaysCount,
-    goalWater: weeklyGoals.water_ml,
+  const monthMetrics = {
+    totalCalories: monthTotals.kcal,
+    avgCalories: monthTotals.kcal / activeDaysCount,
+    totalWater: monthTotals.water_ml,
+    avgWater: monthTotals.water_ml / activeDaysCount,
+    goalWater: monthlyGoals.water_ml,
     activeDays: activeDays,
     bestDay: dailyData.reduce((best, day) => 
       Math.abs(day.kcal - dailyGoal.kcal) < Math.abs(best.kcal - dailyGoal.kcal) ? day : best
@@ -91,53 +87,73 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
       Math.abs(day.kcal - dailyGoal.kcal) > Math.abs(worst.kcal - dailyGoal.kcal) ? day : worst
     ),
     progressPercentages: {
-      protein: weeklyGoals.protein_g > 0 ? Math.round((weekTotals.protein_g / weeklyGoals.protein_g) * 100) : 0,
-      carbs: weeklyGoals.carbs_g > 0 ? Math.round((weekTotals.carbs_g / weeklyGoals.carbs_g) * 100) : 0,
-      fat: weeklyGoals.fat_g > 0 ? Math.round((weekTotals.fat_g / weeklyGoals.fat_g) * 100) : 0,
-      kcal: Math.round((weekTotals.kcal / weeklyGoals.kcal) * 100),
-      water: weeklyGoals.water_ml > 0 ? Math.round((weekTotals.water_ml / weeklyGoals.water_ml) * 100) : 0
+      protein: monthlyGoals.protein_g > 0 ? Math.round((monthTotals.protein_g / monthlyGoals.protein_g) * 100) : 0,
+      carbs: monthlyGoals.carbs_g > 0 ? Math.round((monthTotals.carbs_g / monthlyGoals.carbs_g) * 100) : 0,
+      fat: monthlyGoals.fat_g > 0 ? Math.round((monthTotals.fat_g / monthlyGoals.fat_g) * 100) : 0,
+      kcal: Math.round((monthTotals.kcal / monthlyGoals.kcal) * 100),
+      water: monthlyGoals.water_ml > 0 ? Math.round((monthTotals.water_ml / monthlyGoals.water_ml) * 100) : 0
     }
   };
 
   const macroData = [
-    { name: 'Proteínas', value: weekTotals.protein_g, color: '#3B82F6' },
-    { name: 'Carboidratos', value: weekTotals.carbs_g, color: '#10B981' },
-    { name: 'Gorduras', value: weekTotals.fat_g, color: '#F59E0B' }
+    { name: 'Proteínas', value: monthTotals.protein_g, color: '#3B82F6' },
+    { name: 'Carboidratos', value: monthTotals.carbs_g, color: '#10B981' },
+    { name: 'Gorduras', value: monthTotals.fat_g, color: '#F59E0B' }
   ];
 
-  const handlePreviousWeek = () => {
-    onWeekChange(subDays(weekStart, 7));
+  const handlePreviousMonth = () => {
+    onMonthChange(subMonths(monthStart, 1));
   };
 
-  const handleNextWeek = () => {
-    onWeekChange(addDays(weekStart, 7));
+  const handleNextMonth = () => {
+    onMonthChange(addMonths(monthStart, 1));
   };
 
-  const handleCurrentWeek = () => {
-    onWeekChange(startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const handleCurrentMonth = () => {
+    onMonthChange(startOfMonth(new Date()));
   };
 
+  // Agrupar dados por semana para o gráfico
+  const weeklyData = [];
+  const weeklyFactor = currentUserData?.weeklyGoalFactor || 1.0;
+  const weeklyGoal = dailyGoal.kcal * weeklyFactor * 7; // Meta semanal = kcal_goal * weeklyGoalFactor * 7
+  for (let i = 0; i < dailyData.length; i += 7) {
+    const weekDays = dailyData.slice(i, i + 7);
+    const weekTotals = weekDays.reduce((sum, day) => ({
+      protein_g: sum.protein_g + day.protein_g,
+      carbs_g: sum.carbs_g + day.carbs_g,
+      fat_g: sum.fat_g + day.fat_g,
+      kcal: sum.kcal + day.kcal,
+      water_ml: sum.water_ml + day.water_ml
+    }), { protein_g: 0, carbs_g: 0, fat_g: 0, kcal: 0, water_ml: 0 });
+    
+    weeklyData.push({
+      week: `Semana ${Math.floor(i / 7) + 1}`,
+      goal: weeklyGoal,
+      ...weekTotals
+    });
+  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900">Relatório Semanal</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Relatório Mensal</h2>
         <p className="text-gray-600">
-          {format(weekStart, 'dd/MM/yyyy', { locale: ptBR })} - {format(weekEnd, 'dd/MM/yyyy', { locale: ptBR })}
+          {format(monthStart, 'MMMM yyyy', { locale: ptBR })}
         </p>
       </div>
 
-      {/* Week Navigation */}
+      {/* Month Navigation */}
       <div className="flex justify-center space-x-2">
-        <Button onClick={handlePreviousWeek} variant="secondary" size="sm">
-          ← Semana Anterior
+        <Button onClick={handlePreviousMonth} variant="secondary" size="sm">
+          ← Mês Anterior
         </Button>
-        <Button onClick={handleCurrentWeek} variant="secondary" size="sm">
-          Semana Atual
+        <Button onClick={handleCurrentMonth} variant="secondary" size="sm">
+          Mês Atual
         </Button>
-        <Button onClick={handleNextWeek} variant="secondary" size="sm">
-          Próxima Semana →
+        <Button onClick={handleNextMonth} variant="secondary" size="sm">
+          Próximo Mês →
         </Button>
       </div>
 
@@ -145,8 +161,8 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         {/* Protein */}
         <CompactNutritionCard
-          value={weekTotals.protein_g}
-          max={weeklyGoals.protein_g}
+          value={monthTotals.protein_g}
+          max={monthlyGoals.protein_g}
           color="bg-blue-500"
           label="Proteínas"
           unit="g"
@@ -155,8 +171,8 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
 
         {/* Carbs */}
         <CompactNutritionCard
-          value={weekTotals.carbs_g}
-          max={weeklyGoals.carbs_g}
+          value={monthTotals.carbs_g}
+          max={monthlyGoals.carbs_g}
           color="bg-green-500"
           label="Carboidratos"
           unit="g"
@@ -165,8 +181,8 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
 
         {/* Fat */}
         <CompactNutritionCard
-          value={weekTotals.fat_g}
-          max={weeklyGoals.fat_g}
+          value={monthTotals.fat_g}
+          max={monthlyGoals.fat_g}
           color="bg-yellow-500"
           label="Gorduras"
           unit="g"
@@ -175,8 +191,8 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
 
         {/* Calories */}
         <CompactNutritionCard
-          value={weekTotals.kcal}
-          max={weeklyGoals.kcal}
+          value={monthTotals.kcal}
+          max={monthlyGoals.kcal}
           color="bg-red-500"
           label="Calorias"
           unit="kcal"
@@ -185,8 +201,8 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
 
         {/* Water */}
         <CompactNutritionCard
-          value={weekTotals.water_ml}
-          max={weeklyGoals.water_ml}
+          value={monthTotals.water_ml}
+          max={monthlyGoals.water_ml}
           color="bg-cyan-500"
           label="Água"
           unit="ml"
@@ -194,28 +210,28 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
         />
       </div>
 
-      {/* Week Summary */}
+      {/* Month Summary */}
       <Card>
         <div className="p-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">Resumo da Semana</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">Resumo do Mês</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600 mb-1">
-                {weekMetrics.activeDays}
+                {monthMetrics.activeDays}
               </div>
               <div className="text-sm text-gray-600">Dias Ativos</div>
-              <div className="text-xs text-gray-500">de 7 dias</div>
+              <div className="text-xs text-gray-500">de {monthDays.length} dias</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600 mb-1">
-                {Math.round(weekMetrics.avgCalories)}
+                {Math.round(monthMetrics.avgCalories)}
               </div>
               <div className="text-sm text-gray-600">Média Calorias</div>
               <div className="text-xs text-gray-500">por dia ativo</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-cyan-600 mb-1">
-                {Math.round(weekMetrics.avgWater)}ml
+                {Math.round(monthMetrics.avgWater)}ml
               </div>
               <div className="text-sm text-gray-600">Média Água</div>
               <div className="text-xs text-gray-500">por dia ativo</div>
@@ -226,25 +242,25 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Daily Calories Line Chart */}
+        {/* Weekly Calories Line Chart */}
         <Card>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Calorias Diárias</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Calorias por Semana</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={dailyData}>
+              <LineChart data={weeklyData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
-                  dataKey="dayName" 
+                  dataKey="week" 
                   tick={{ fontSize: 12 }}
                 />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip 
                   formatter={(value, name) => {
                     if (name === 'kcal') return [`${value} kcal`, 'Calorias Consumidas'];
-                    if (name === 'goal') return [`${value} kcal`, 'Meta Diária'];
+                    if (name === 'goal') return [`${value} kcal`, 'Meta Semanal'];
                     return [`${value} kcal`, name];
                   }}
-                  labelFormatter={(label) => `Dia: ${label}`}
+                  labelFormatter={(label) => `Semana: ${label}`}
                 />
                 <Line 
                   type="monotone" 
@@ -315,33 +331,9 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
         </Card>
       </div>
 
-      {/* Daily Summary */}
+      {/* Monthly Summary */}
       <Card>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Resumo Diário</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
-          {dailyData.map((day) => (
-            <div key={day.date} className="text-center">
-              <div className="font-medium text-gray-900 mb-2">
-                {day.dayName}
-              </div>
-              <div className="text-2xl font-bold text-gray-900 mb-1">
-                {formatNumber(day.kcal)}
-              </div>
-              <div className="text-xs text-gray-500 mb-2">kcal</div>
-              <div className="text-xs text-gray-600 space-y-1">
-                <div>{formatNumber(day.protein_g)}p</div>
-                <div>{formatNumber(day.carbs_g)}c</div>
-                <div>{formatNumber(day.fat_g)}g</div>
-                <div className="text-cyan-600">{formatNumber(day.water_ml)}ml</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      {/* Weekly Summary */}
-      <Card>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Resumo Semanal</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Resumo Mensal</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <h4 className="font-medium text-gray-900 mb-2">Macronutrientes</h4>
@@ -349,27 +341,27 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
               <div className="flex justify-between">
                 <span className="text-gray-600">Proteínas:</span>
                 <span className="font-medium">
-                  {formatNumber(weekTotals.protein_g)}g
+                  {formatNumber(monthTotals.protein_g)}g
                   <span className="text-sm text-gray-500 ml-1">
-                    ({weekMetrics.progressPercentages.protein}%)
+                    ({monthMetrics.progressPercentages.protein}%)
                   </span>
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Carboidratos:</span>
                 <span className="font-medium">
-                  {formatNumber(weekTotals.carbs_g)}g
+                  {formatNumber(monthTotals.carbs_g)}g
                   <span className="text-sm text-gray-500 ml-1">
-                    ({weekMetrics.progressPercentages.carbs}%)
+                    ({monthMetrics.progressPercentages.carbs}%)
                   </span>
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Gorduras:</span>
                 <span className="font-medium">
-                  {formatNumber(weekTotals.fat_g)}g
+                  {formatNumber(monthTotals.fat_g)}g
                   <span className="text-sm text-gray-500 ml-1">
-                    ({weekMetrics.progressPercentages.fat}%)
+                    ({monthMetrics.progressPercentages.fat}%)
                   </span>
                 </span>
               </div>
@@ -381,18 +373,18 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
               <div className="flex justify-between">
                 <span className="text-gray-600">Calorias:</span>
                 <span className="font-medium">
-                  {formatNumber(weekTotals.kcal)}
+                  {formatNumber(monthTotals.kcal)}
                   <span className="text-sm text-gray-500 ml-1">
-                    ({weekMetrics.progressPercentages.kcal}%)
+                    ({monthMetrics.progressPercentages.kcal}%)
                   </span>
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Água:</span>
                 <span className="font-medium">
-                  {formatNumber(weekTotals.water_ml)}ml
+                  {formatNumber(monthTotals.water_ml)}ml
                   <span className="text-sm text-gray-500 ml-1">
-                    ({weekMetrics.progressPercentages.water}%)
+                    ({monthMetrics.progressPercentages.water}%)
                   </span>
                 </span>
               </div>
