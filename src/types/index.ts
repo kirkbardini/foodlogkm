@@ -48,6 +48,7 @@ export interface UserPrefs {
   };
   dailyGoalFactor?: number; // Fator multiplicador para metas diárias
   weeklyGoalFactor?: number; // Fator multiplicador para metas semanais
+  monthlyGoalFactor?: number; // Fator multiplicador para metas mensais
 }
 
 export interface AppSettings {

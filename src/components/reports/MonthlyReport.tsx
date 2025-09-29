@@ -5,7 +5,7 @@ import { CompactNutritionCard } from '../ui/CompactNutritionCard';
 import { Button } from '../ui/Button';
 import { formatNumber } from '../../lib/calculations';
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { format, startOfMonth, endOfMonth, addDays, subMonths, addMonths, eachDayOfInterval } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths, addMonths, eachDayOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface MonthlyReportProps {
