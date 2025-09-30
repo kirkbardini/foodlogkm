@@ -4,7 +4,7 @@ import { Card } from '../ui/Card';
 import { CompactNutritionCard } from '../ui/CompactNutritionCard';
 import { Button } from '../ui/Button';
 import { formatNumber } from '../../lib/calculations';
-import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, LabelList } from 'recharts';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, eachDayOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -102,6 +102,84 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({ monthStart, onMont
     { name: 'Proteínas', value: monthTotals.protein_g, color: '#3B82F6' },
     { name: 'Carboidratos', value: monthTotals.carbs_g, color: '#10B981' },
     { name: 'Gorduras', value: monthTotals.fat_g, color: '#F59E0B' }
+  ];
+
+  // Fallback para dados mínimos se não estiverem definidos
+  const fallbackMinimums = {
+    kirk: { protein_g: 125, carbs_g: 160, fat_g: 40, kcal: 1500 },
+    manu: { protein_g: 96, carbs_g: 120, fat_g: 25, kcal: 1100 }
+  };
+  
+  const minimumRequirements = currentUserData?.minimumRequirements || fallbackMinimums[currentUser as 'kirk' | 'manu'] || fallbackMinimums.kirk;
+
+  // Dados para o gráfico de macronutrientes mensais
+  const macroChartData = [
+    {
+      macro: 'Proteínas',
+      consumed: Math.round(monthTotals.protein_g),
+      goal: Math.round(monthlyGoals.protein_g),
+      minimum: Math.round(minimumRequirements.protein_g * activeDaysCount),
+      // Cor dinâmica baseada na performance
+      consumedColor: monthTotals.protein_g < (minimumRequirements.protein_g * activeDaysCount)
+        ? '#EF4444' // Vermelho se abaixo do mínimo
+        : monthTotals.protein_g <= monthlyGoals.protein_g * 1.05 
+          ? '#10B981' // Verde se entre mínimo e 105% da meta
+          : monthTotals.protein_g <= monthlyGoals.protein_g * 1.10
+            ? '#F59E0B' // Amarelo se entre 105% e 110% da meta
+            : '#EF4444', // Vermelho se acima de 110% da meta
+      // Label dinâmico para o topo da barra
+      statusLabel: monthTotals.protein_g < (minimumRequirements.protein_g * activeDaysCount)
+        ? '🔴 Abaixo' // Vermelho se abaixo do mínimo
+        : monthTotals.protein_g <= monthlyGoals.protein_g * 1.05 
+          ? '🟢 Meta' // Verde se entre mínimo e 105% da meta
+          : monthTotals.protein_g <= monthlyGoals.protein_g * 1.10
+            ? '🟡 Acima' // Amarelo se entre 105% e 110% da meta
+            : '🔴 Excesso' // Vermelho se acima de 110% da meta
+    },
+    {
+      macro: 'Carboidratos',
+      consumed: Math.round(monthTotals.carbs_g),
+      goal: Math.round(monthlyGoals.carbs_g),
+      minimum: Math.round(minimumRequirements.carbs_g * activeDaysCount),
+      // Cor dinâmica baseada na performance
+      consumedColor: monthTotals.carbs_g < (minimumRequirements.carbs_g * activeDaysCount)
+        ? '#EF4444' // Vermelho se abaixo do mínimo
+        : monthTotals.carbs_g <= monthlyGoals.carbs_g * 1.05 
+          ? '#10B981' // Verde se entre mínimo e 105% da meta
+          : monthTotals.carbs_g <= monthlyGoals.carbs_g * 1.10
+            ? '#F59E0B' // Amarelo se entre 105% e 110% da meta
+            : '#EF4444', // Vermelho se acima de 110% da meta
+      // Label dinâmico para o topo da barra
+      statusLabel: monthTotals.carbs_g < (minimumRequirements.carbs_g * activeDaysCount)
+        ? '🔴 Abaixo' // Vermelho se abaixo do mínimo
+        : monthTotals.carbs_g <= monthlyGoals.carbs_g * 1.05 
+          ? '🟢 Meta' // Verde se entre mínimo e 105% da meta
+          : monthTotals.carbs_g <= monthlyGoals.carbs_g * 1.10
+            ? '🟡 Acima' // Amarelo se entre 105% e 110% da meta
+            : '🔴 Excesso' // Vermelho se acima de 110% da meta
+    },
+    {
+      macro: 'Gorduras',
+      consumed: Math.round(monthTotals.fat_g),
+      goal: Math.round(monthlyGoals.fat_g),
+      minimum: Math.round(minimumRequirements.fat_g * activeDaysCount),
+      // Cor dinâmica baseada na performance
+      consumedColor: monthTotals.fat_g < (minimumRequirements.fat_g * activeDaysCount)
+        ? '#EF4444' // Vermelho se abaixo do mínimo
+        : monthTotals.fat_g <= monthlyGoals.fat_g * 1.05 
+          ? '#10B981' // Verde se entre mínimo e 105% da meta
+          : monthTotals.fat_g <= monthlyGoals.fat_g * 1.10
+            ? '#F59E0B' // Amarelo se entre 105% e 110% da meta
+            : '#EF4444', // Vermelho se acima de 110% da meta
+      // Label dinâmico para o topo da barra
+      statusLabel: monthTotals.fat_g < (minimumRequirements.fat_g * activeDaysCount)
+        ? '🔴 Abaixo' // Vermelho se abaixo do mínimo
+        : monthTotals.fat_g <= monthlyGoals.fat_g * 1.05 
+          ? '🟢 Meta' // Verde se entre mínimo e 105% da meta
+          : monthTotals.fat_g <= monthlyGoals.fat_g * 1.10
+            ? '🟡 Acima' // Amarelo se entre 105% e 110% da meta
+            : '🔴 Excesso' // Vermelho se acima de 110% da meta
+    }
   ];
 
   const handlePreviousMonth = () => {
@@ -246,6 +324,96 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({ monthStart, onMont
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Macronutrients Chart */}
+        <Card>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Macronutrientes</h3>
+          <div className="h-96">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart 
+                data={macroChartData}
+                margin={{ top: 40, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="macro" 
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis 
+                  tick={{ fontSize: 12 }}
+                  domain={[0, 'dataMax + 20']}
+                />
+                <Tooltip 
+                  formatter={(value, name) => {
+                    if (name === 'consumed') return [`${value}g`, 'Consumido'];
+                    if (name === 'goal') return [`${value}g`, 'Meta'];
+                    if (name === 'minimum') return [`${value}g`, 'Mínimo Recomendado'];
+                    return [`${value}g`, name];
+                  }}
+                />
+                {/* Barra de fundo para o mínimo (primeira - acinzentada) */}
+                <Bar 
+                  dataKey="minimum" 
+                  fill="#E5E7EB" 
+                  name="minimum"
+                  radius={[2, 2, 2, 2]}
+                  stroke="#9CA3AF"
+                  strokeWidth={1}
+                  strokeDasharray="2 2"
+                />
+                {/* Barra da meta (segunda - dark gray dashed) */}
+                <Bar 
+                  dataKey="goal" 
+                  fill="#374151" 
+                  name="goal"
+                  radius={[2, 2, 2, 2]}
+                  stroke="#374151"
+                  strokeWidth={1}
+                  strokeDasharray="3 3"
+                />
+                {/* Barra do consumo (terceira - cor dinâmica) */}
+                <Bar 
+                  dataKey="consumed" 
+                  name="consumed"
+                  radius={[2, 2, 2, 2]}
+                  strokeWidth={1}
+                >
+                  {macroChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.consumedColor} stroke={entry.consumedColor} />
+                  ))}
+                  <LabelList 
+                    dataKey="statusLabel" 
+                    position="top" 
+                    style={{ 
+                      fontSize: '11px', 
+                      fontWeight: 'bold',
+                      fill: '#374151'
+                    }}
+                    formatter={(value) => value}
+                    offset={5}
+                  />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          {/* Legenda personalizada */}
+          <div className="flex justify-center space-x-6 mt-4 text-sm">
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-3 bg-gray-300 rounded border border-gray-400" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 2px, #9CA3AF 2px, #9CA3AF 4px)' }}></div>
+              <span className="text-gray-600">Mínimo</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-3 bg-gray-600 rounded border border-gray-600" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 2px, #374151 2px, #374151 4px)' }}></div>
+              <span className="text-gray-600">Meta</span>
+            </div>
+          </div>
+          {/* Legenda de cores dinâmicas */}
+          <div className="flex justify-center space-x-4 mt-2 text-xs text-gray-500">
+            <span>🔴 Abaixo</span>
+            <span>🟢 Ideal</span>
+            <span>🟡 Atenção</span>
+            <span>🔴 Excesso</span>
+          </div>
+        </Card>
         {/* Weekly Calories Line Chart */}
         <Card>
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Calorias por Semana</h3>
