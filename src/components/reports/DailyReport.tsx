@@ -4,7 +4,7 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { CompactNutritionCard } from '../ui/CompactNutritionCard';
 import { MealDistributionChart } from './MealDistributionChart';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Line, LabelList } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts';
 import { format, addDays, subDays, isToday, isYesterday, isTomorrow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -356,7 +356,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({ date, onDateChange }) 
                       fontWeight: 'bold',
                       fill: '#374151'
                     }}
-                    formatter={(value) => value}
+                    formatter={(value: string) => value}
                     offset={5}
                   />
                 </Bar>

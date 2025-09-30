@@ -388,7 +388,7 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({ monthStart, onMont
                       fontWeight: 'bold',
                       fill: '#374151'
                     }}
-                    formatter={(value) => value}
+                    formatter={(value: string) => value}
                     offset={5}
                   />
                 </Bar>
