@@ -6,7 +6,7 @@ import { CompactNutritionCard } from '../ui/CompactNutritionCard';
 import { MealDistributionChart } from './MealDistributionChart';
 import { format, addDays, subDays, isToday, isYesterday, isTomorrow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts';
+import { Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts';
 
 interface DailyReportProps {
   date: string;
