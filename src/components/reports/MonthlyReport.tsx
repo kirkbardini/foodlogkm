@@ -74,11 +74,11 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({ monthStart, onMont
   // Calcular metas mensais baseadas em dias ativos e fator mensal
   const monthlyFactor = currentUserData?.monthlyGoalFactor || 1.0;
   const monthlyGoals = {
-    protein_g: Math.round(dailyGoal.protein_g * activeDaysCount * monthlyFactor),
-    carbs_g: Math.round(dailyGoal.carbs_g * activeDaysCount * monthlyFactor),
+    protein_g: Math.round(dailyGoal.protein_g * activeDaysCount),
+    carbs_g: Math.round(dailyGoal.carbs_g * activeDaysCount),
     fat_g: Math.round(dailyGoal.fat_g * activeDaysCount * monthlyFactor),
     kcal: Math.round(dailyGoal.kcal * activeDaysCount * monthlyFactor),
-    water_ml: Math.round(dailyGoal.water_ml * activeDaysCount * monthlyFactor)
+    water_ml: Math.round(dailyGoal.water_ml * activeDaysCount)
   };
 
   // Calcular médias diárias
