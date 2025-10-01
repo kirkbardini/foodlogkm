@@ -38,6 +38,17 @@ export const CompactNutritionCard: React.FC<CompactNutritionCardProps> = ({
     // Se não há mínimo definido, usar lógica de fallback baseada em percentual
     if (!minimum) {
       const percentage = max > 0 ? (value / max) * 100 : 0;
+      
+      // Lógica especial para água (mais permissiva)
+      if (macroType.toLowerCase() === 'água' || macroType.toLowerCase() === 'agua') {
+        if (percentage < 75) return 'very-low';
+        if (percentage <= 90) return 'low';
+        if (percentage <= 130) return 'target';  // Até 130% é meta para água
+        if (percentage <= 150) return 'above';  // 130% - 150% é acima
+        return 'excess';
+      }
+      
+      // Lógica padrão para outros macros
       if (percentage < 60) return 'very-low';
       if (percentage <= 79) return 'low';
       if (percentage <= 100) return 'target';
