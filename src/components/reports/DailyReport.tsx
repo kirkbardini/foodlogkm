@@ -155,19 +155,19 @@ export const DailyReport: React.FC<DailyReportProps> = ({ date, onDateChange }) 
       // Cor dinâmica baseada na performance
       consumedColor: dayTotals.fat_g < minimumRequirements.fat_g 
         ? '#EF4444' // Vermelho se abaixo do mínimo
-        : dayTotals.fat_g <= dailyGoal.fat_g * 1.05 
+        : dayTotals.fat_g <= dailyGoal.fat_g * 1.15 
           ? '#10B981' // Verde se entre mínimo e 105% da meta
-          : dayTotals.fat_g <= dailyGoal.fat_g * 1.10
-            ? '#F59E0B' // Amarelo se entre 105% e 110% da meta
-            : '#EF4444', // Vermelho se acima de 110% da meta
+          : dayTotals.fat_g <= dailyGoal.fat_g * 1.25
+            ? '#F59E0B' // Amarelo se entre 115% e 125% da meta
+            : '#EF4444', // Vermelho se acima de 125 da meta
       // Label dinâmico para o topo da barra
       statusLabel: dayTotals.fat_g < minimumRequirements.fat_g 
         ? '🔴 Abaixo' // Vermelho se abaixo do mínimo
-        : dayTotals.fat_g <= dailyGoal.fat_g * 1.05 
+        : dayTotals.fat_g <= dailyGoal.fat_g * 1.15 
           ? '🟢 Meta' // Verde se entre mínimo e 105% da meta
-          : dayTotals.fat_g <= dailyGoal.fat_g * 1.10
-            ? '🟡 Acima' // Amarelo se entre 105% e 110% da meta
-            : '🔴 Excesso' // Vermelho se acima de 110% da meta
+          : dayTotals.fat_g <= dailyGoal.fat_g * 1.25
+            ? '🟡 Acima' // Amarelo se entre 115% e 125% da meta
+            : '🔴 Excesso' // Vermelho se acima de 125% da meta
     }
   ];
 

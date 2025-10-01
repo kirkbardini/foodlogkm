@@ -172,19 +172,19 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({ monthStart, onMont
       // Cor dinâmica baseada na performance
       consumedColor: monthTotals.fat_g < (minimumRequirements.fat_g * activeDaysCount)
         ? '#EF4444' // Vermelho se abaixo do mínimo
-        : monthTotals.fat_g <= monthlyGoals.fat_g * 1.05 
-          ? '#10B981' // Verde se entre mínimo e 105% da meta
-          : monthTotals.fat_g <= monthlyGoals.fat_g * 1.10
-            ? '#F59E0B' // Amarelo se entre 105% e 110% da meta
-            : '#EF4444', // Vermelho se acima de 110% da meta
+        : monthTotals.fat_g <= monthlyGoals.fat_g * 1.15 
+          ? '#10B981' // Verde se entre mínimo e 115% da meta
+          : monthTotals.fat_g <= monthlyGoals.fat_g * 1.25
+            ? '#F59E0B' // Amarelo se entre 115% e 125% da meta
+            : '#EF4444', // Vermelho se acima de 125% da meta
       // Label dinâmico para o topo da barra
       statusLabel: monthTotals.fat_g < (minimumRequirements.fat_g * activeDaysCount)
         ? '🔴 Abaixo' // Vermelho se abaixo do mínimo
-        : monthTotals.fat_g <= monthlyGoals.fat_g * 1.05 
-          ? '🟢 Meta' // Verde se entre mínimo e 105% da meta
-          : monthTotals.fat_g <= monthlyGoals.fat_g * 1.10
-            ? '🟡 Acima' // Amarelo se entre 105% e 110% da meta
-            : '🔴 Excesso' // Vermelho se acima de 110% da meta
+        : monthTotals.fat_g <= monthlyGoals.fat_g * 1.15 
+          ? '🟢 Meta' // Verde se entre mínimo e 115% da meta
+          : monthTotals.fat_g <= monthlyGoals.fat_g * 1.25
+            ? '🟡 Acima' // Amarelo se entre 115% e 125% da meta
+            : '🔴 Excesso' // Vermelho se acima de 125% da meta
     }
   ];
 
