@@ -4,7 +4,6 @@ interface CompactNutritionCardProps {
   value: number;
   max: number;
   minimum?: number;
-  color: string;
   label: string;
   unit: string;
   icon: string;
@@ -15,7 +14,6 @@ export const CompactNutritionCard: React.FC<CompactNutritionCardProps> = ({
   value,
   max,
   minimum,
-  color,
   label,
   unit,
   icon,
