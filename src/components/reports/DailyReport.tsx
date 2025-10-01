@@ -239,6 +239,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({ date, onDateChange }) 
         <CompactNutritionCard
           value={dayTotals.protein_g}
           max={dailyGoal.protein_g}
+          minimum={minimumRequirements.protein_g}
           color="bg-blue-500"
           label="Proteínas"
           unit="g"
@@ -249,6 +250,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({ date, onDateChange }) 
         <CompactNutritionCard
           value={dayTotals.carbs_g}
           max={dailyGoal.carbs_g}
+          minimum={minimumRequirements.carbs_g}
           color="bg-green-500"
           label="Carboidratos"
           unit="g"
@@ -259,6 +261,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({ date, onDateChange }) 
         <CompactNutritionCard
           value={dayTotals.fat_g}
           max={dailyGoal.fat_g}
+          minimum={minimumRequirements.fat_g}
           color="bg-yellow-500"
           label="Gorduras"
           unit="g"
@@ -269,6 +272,7 @@ export const DailyReport: React.FC<DailyReportProps> = ({ date, onDateChange }) 
         <CompactNutritionCard
           value={dayTotals.kcal}
           max={dailyGoal.kcal}
+          minimum={minimumRequirements.kcal}
           color="bg-red-500"
           label="Calorias"
           unit="kcal"

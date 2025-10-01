@@ -275,6 +275,7 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({ monthStart, onMont
         <CompactNutritionCard
           value={monthTotals.protein_g}
           max={monthlyGoals.protein_g}
+          minimum={minimumRequirements.protein_g * activeDaysCount}
           color="bg-blue-500"
           label="Proteínas"
           unit="g"
@@ -285,6 +286,7 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({ monthStart, onMont
         <CompactNutritionCard
           value={monthTotals.carbs_g}
           max={monthlyGoals.carbs_g}
+          minimum={minimumRequirements.carbs_g * activeDaysCount}
           color="bg-green-500"
           label="Carboidratos"
           unit="g"
@@ -295,6 +297,7 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({ monthStart, onMont
         <CompactNutritionCard
           value={monthTotals.fat_g}
           max={monthlyGoals.fat_g}
+          minimum={minimumRequirements.fat_g * activeDaysCount}
           color="bg-yellow-500"
           label="Gorduras"
           unit="g"
@@ -305,6 +308,7 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({ monthStart, onMont
         <CompactNutritionCard
           value={monthTotals.kcal}
           max={monthlyGoals.kcal}
+          minimum={minimumRequirements.kcal * activeDaysCount}
           color="bg-red-500"
           label="Calorias"
           unit="kcal"

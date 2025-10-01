@@ -264,6 +264,7 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
         <CompactNutritionCard
           value={weekTotals.protein_g}
           max={weeklyGoals.protein_g}
+          minimum={minimumRequirements.protein_g * activeDaysCount}
           color="bg-blue-500"
           label="Proteínas"
           unit="g"
@@ -274,6 +275,7 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
         <CompactNutritionCard
           value={weekTotals.carbs_g}
           max={weeklyGoals.carbs_g}
+          minimum={minimumRequirements.carbs_g * activeDaysCount}
           color="bg-green-500"
           label="Carboidratos"
           unit="g"
@@ -284,6 +286,7 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
         <CompactNutritionCard
           value={weekTotals.fat_g}
           max={weeklyGoals.fat_g}
+          minimum={minimumRequirements.fat_g * activeDaysCount}
           color="bg-yellow-500"
           label="Gorduras"
           unit="g"
@@ -294,6 +297,7 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
         <CompactNutritionCard
           value={weekTotals.kcal}
           max={weeklyGoals.kcal}
+          minimum={minimumRequirements.kcal * activeDaysCount}
           color="bg-red-500"
           label="Calorias"
           unit="kcal"
