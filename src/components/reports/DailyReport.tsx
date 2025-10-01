@@ -4,7 +4,6 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { CompactNutritionCard } from '../ui/CompactNutritionCard';
 import { MealDistributionChart } from './MealDistributionChart';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts';
 import { format, addDays, subDays, isToday, isYesterday, isTomorrow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -93,89 +92,9 @@ export const DailyReport: React.FC<DailyReportProps> = ({ date, onDateChange }) 
 
   const dateInfo = formatDateWithWeekday(date);
 
-  const macroData = [
-    { name: 'Proteínas', value: dayTotals.protein_g, color: '#3B82F6' },
-    { name: 'Carboidratos', value: dayTotals.carbs_g, color: '#10B981' },
-    { name: 'Gorduras', value: dayTotals.fat_g, color: '#F59E0B' }
-  ];
 
-  // Fallback para dados mínimos se não estiverem definidos
-  const fallbackMinimums = {
-    kirk: { protein_g: 125, carbs_g: 160, fat_g: 40, kcal: 1500 },
-    manu: { protein_g: 96, carbs_g: 120, fat_g: 25, kcal: 1100 }
-  };
   
-  const minimumRequirements = currentUserData?.minimumRequirements || fallbackMinimums[currentUser as 'kirk' | 'manu'] || fallbackMinimums.kirk;
 
-  // Dados para o gráfico de macronutrientes
-  const macroChartData = [
-    {
-      macro: 'Proteínas',
-      consumed: Math.round(dayTotals.protein_g),
-      goal: Math.round(dailyGoal.protein_g),
-      minimum: minimumRequirements.protein_g,
-      // Cor dinâmica baseada na performance
-      consumedColor: dayTotals.protein_g < minimumRequirements.protein_g 
-        ? '#EF4444' // Vermelho se abaixo do mínimo
-        : dayTotals.protein_g <= dailyGoal.protein_g * 1.05 
-          ? '#10B981' // Verde se entre mínimo e 105% da meta
-          : dayTotals.protein_g <= dailyGoal.protein_g * 1.10
-            ? '#F59E0B' // Amarelo se entre 105% e 110% da meta
-            : '#EF4444', // Vermelho se acima de 110% da meta
-      // Label dinâmico para o topo da barra
-      statusLabel: dayTotals.protein_g < minimumRequirements.protein_g 
-        ? '🔴 Abaixo' // Vermelho se abaixo do mínimo
-        : dayTotals.protein_g <= dailyGoal.protein_g * 1.05 
-          ? '🟢 Meta' // Verde se entre mínimo e 105% da meta
-          : dayTotals.protein_g <= dailyGoal.protein_g * 1.10
-            ? '🟡 Acima' // Amarelo se entre 105% e 110% da meta
-            : '🔴 Excesso' // Vermelho se acima de 110% da meta
-    },
-    {
-      macro: 'Carboidratos',
-      consumed: Math.round(dayTotals.carbs_g),
-      goal: Math.round(dailyGoal.carbs_g),
-      minimum: minimumRequirements.carbs_g,
-      // Cor dinâmica baseada na performance
-      consumedColor: dayTotals.carbs_g < minimumRequirements.carbs_g 
-        ? '#EF4444' // Vermelho se abaixo do mínimo
-        : dayTotals.carbs_g <= dailyGoal.carbs_g * 1.05 
-          ? '#10B981' // Verde se entre mínimo e 105% da meta
-          : dayTotals.carbs_g <= dailyGoal.carbs_g * 1.10
-            ? '#F59E0B' // Amarelo se entre 105% e 110% da meta
-            : '#EF4444', // Vermelho se acima de 110% da meta
-      // Label dinâmico para o topo da barra
-      statusLabel: dayTotals.carbs_g < minimumRequirements.carbs_g 
-        ? '🔴 Abaixo' // Vermelho se abaixo do mínimo
-        : dayTotals.carbs_g <= dailyGoal.carbs_g * 1.05 
-          ? '🟢 Meta' // Verde se entre mínimo e 105% da meta
-          : dayTotals.carbs_g <= dailyGoal.carbs_g * 1.10
-            ? '🟡 Acima' // Amarelo se entre 105% e 110% da meta
-            : '🔴 Excesso' // Vermelho se acima de 110% da meta
-    },
-    {
-      macro: 'Gorduras',
-      consumed: Math.round(dayTotals.fat_g),
-      goal: Math.round(dailyGoal.fat_g),
-      minimum: minimumRequirements.fat_g,
-      // Cor dinâmica baseada na performance
-      consumedColor: dayTotals.fat_g < minimumRequirements.fat_g 
-        ? '#EF4444' // Vermelho se abaixo do mínimo
-        : dayTotals.fat_g <= dailyGoal.fat_g * 1.05 
-          ? '#10B981' // Verde se entre mínimo e 105% da meta
-          : dayTotals.fat_g <= dailyGoal.fat_g * 1.10
-            ? '#F59E0B' // Amarelo se entre 105% e 110% da meta
-            : '#EF4444', // Vermelho se acima de 110% da meta
-      // Label dinâmico para o topo da barra
-      statusLabel: dayTotals.fat_g < minimumRequirements.fat_g 
-        ? '🔴 Abaixo' // Vermelho se abaixo do mínimo
-        : dayTotals.fat_g <= dailyGoal.fat_g * 1.05 
-          ? '🟢 Meta' // Verde se entre mínimo e 105% da meta
-          : dayTotals.fat_g <= dailyGoal.fat_g * 1.10
-            ? '🟡 Acima' // Amarelo se entre 105% e 110% da meta
-            : '🔴 Excesso' // Vermelho se acima de 110% da meta
-    }
-  ];
 
 
 

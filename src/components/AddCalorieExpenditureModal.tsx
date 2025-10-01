@@ -3,8 +3,6 @@ import { useAppStore } from '../store/useAppStore';
 import { Modal } from './ui/Modal';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 interface AddCalorieExpenditureModalProps {
   isOpen: boolean;
@@ -53,7 +51,9 @@ export const AddCalorieExpenditureModal: React.FC<AddCalorieExpenditureModalProp
         dateISO: date,
         calories_burned: caloriesNumber,
         source: source,
-        note: note.trim() || undefined
+        note: note.trim() || undefined,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       });
 
       // Reset form
@@ -76,9 +76,6 @@ export const AddCalorieExpenditureModal: React.FC<AddCalorieExpenditureModalProp
     onClose();
   };
 
-  const formatDate = (dateStr: string) => {
-    return format(new Date(dateStr), 'dd/MM/yyyy', { locale: ptBR });
-  };
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Adicionar Consumo Calórico">

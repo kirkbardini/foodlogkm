@@ -102,7 +102,11 @@ export const CalorieExpenditureManager: React.FC<CalorieExpenditureManagerProps>
         });
       } else {
         // Adicionando
-        await addCalorieExpenditure(expenditureData);
+        await addCalorieExpenditure({
+          ...expenditureData,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
       }
       
       setShowAddModal(false);

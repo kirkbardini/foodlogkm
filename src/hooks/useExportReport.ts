@@ -25,7 +25,6 @@ export const useExportReport = () => {
       const pageHeight = 295; // A4 height in mm
       const margin = 20;
       const contentWidth = pageWidth - (margin * 2);
-      const contentHeight = pageHeight - (margin * 2);
 
       // Adicionar título
       pdf.setFontSize(20);
