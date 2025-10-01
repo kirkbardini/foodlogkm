@@ -9,7 +9,8 @@ import {
   UserId, 
   AppStateBackup, 
   NutritionTotals,
-  AppSettings 
+  AppSettings,
+  CalorieExpenditure 
 } from '../types';
 import { calculateTotals, generateId } from '../lib/calculations';
 
@@ -49,6 +50,7 @@ interface AppState {
   // Dados
   foods: FoodItem[];
   entries: Entry[];
+  calorieExpenditure: CalorieExpenditure[];
   users: UserPrefs[];
   settings: AppSettings;
 
@@ -80,9 +82,16 @@ interface AppState {
   updateEntry: (entry: Entry) => Promise<void>;
   deleteEntry: (id: string) => Promise<void>;
 
+  // Ações de calorie expenditure
+  addCalorieExpenditure: (calorieExpenditure: Omit<CalorieExpenditure, 'id'>) => Promise<void>;
+  updateCalorieExpenditure: (calorieExpenditure: CalorieExpenditure) => Promise<void>;
+  deleteCalorieExpenditure: (id: string) => Promise<void>;
+
   // Ações de consulta
   getEntriesForDate: (userId: UserId, date: string) => Entry[];
   getEntriesForDateRange: (userId: UserId, startDate: string, endDate: string) => Entry[];
+  getCalorieExpenditureForDate: (userId: UserId, date: string) => CalorieExpenditure[];
+  getCalorieExpenditureForDateRange: (userId: UserId, startDate: string, endDate: string) => CalorieExpenditure[];
 
   // Sistema de temas
   getCurrentUserTheme: () => typeof userThemes.kirk | typeof userThemes.manu;
@@ -99,6 +108,8 @@ interface AppState {
 
   // Cálculos
   getDailyTotals: (userId: UserId, date: string) => NutritionTotals;
+  getDailyCalorieBalance: (userId: UserId, date: string) => { intake: number; expenditure: number; balance: number };
+  getCalorieBalanceForDateRange: (userId: UserId, startDate: string, endDate: string) => { intake: number; expenditure: number; balance: number };
 }
 
 const defaultUsers: UserPrefs[] = [
@@ -166,6 +177,7 @@ export const useAppStore = create<AppState>()(
       isAuthenticated: false,
       foods: [],
       entries: [],
+      calorieExpenditure: [],
       users: defaultUsers,
       settings: defaultSettings,
 
@@ -201,9 +213,10 @@ export const useAppStore = create<AppState>()(
       loadInitialData: async () => {
         try {
           // Carregando dados iniciais...
-          const [foods, entries, users] = await Promise.all([
+          const [foods, entries, calorieExpenditure, users] = await Promise.all([
             database.getAllFoods(),
             database.getAllEntries(),
+            database.getAllCalorieExpenditure(),
             database.getAllUsers()
           ]);
 
@@ -218,12 +231,12 @@ export const useAppStore = create<AppState>()(
           }
 
           // Usar dados locais carregados
-          set({ foods, entries, users: users.length > 0 ? users : defaultUsers });
-          console.log(`✅ Aplicação inicializada (LOCAL): ${foods.length} alimentos, ${entries.length} entradas, ${users.length} usuários`);
+          set({ foods, entries, calorieExpenditure, users: users.length > 0 ? users : defaultUsers });
+          console.log(`✅ Aplicação inicializada (LOCAL): ${foods.length} alimentos, ${entries.length} entradas, ${calorieExpenditure.length} calorie expenditure, ${users.length} usuários`);
         } catch (error) {
           console.error('Erro ao carregar dados iniciais:', error);
           // Em caso de erro, usar dados vazios
-          set({ foods: [], entries: [], users: defaultUsers });
+          set({ foods: [], entries: [], calorieExpenditure: [], users: defaultUsers });
         }
       },
 
@@ -451,6 +464,62 @@ export const useAppStore = create<AppState>()(
         }
       },
 
+      // Ações de calorie expenditure
+      addCalorieExpenditure: async (calorieExpenditureData) => {
+        const now = Date.now();
+        const calorieExpenditure: CalorieExpenditure = {
+          ...calorieExpenditureData,
+          id: (calorieExpenditureData as any).id || generateId(),
+          createdAt: (calorieExpenditureData as any).createdAt || now,
+          updatedAt: now
+        };
+        
+        await database.addCalorieExpenditure(calorieExpenditure);
+        set(state => ({ calorieExpenditure: [...state.calorieExpenditure, calorieExpenditure] }));
+        
+        console.log(`🔥 Calorie expenditure adicionado: ${calorieExpenditure.calories_burned} kcal (${calorieExpenditure.dateISO})`);
+        console.log(`✅ Calorie expenditure salvo localmente: ${calorieExpenditure.id}`);
+        
+        // Sincronização automática com Firebase
+        await syncToFirebase(() => firebaseSyncService.saveCalorieExpenditure(calorieExpenditure), `calorie expenditure ${calorieExpenditure.calories_burned} kcal`);
+        console.log(`✅ Calorie expenditure sincronizado (LOCAL → FIREBASE): ${calorieExpenditure.calories_burned} kcal (${calorieExpenditure.dateISO})`);
+      },
+
+      updateCalorieExpenditure: async (calorieExpenditure) => {
+        const updatedCalorieExpenditure = {
+          ...calorieExpenditure,
+          updatedAt: Date.now()
+        };
+        
+        await database.updateCalorieExpenditure(updatedCalorieExpenditure);
+        set(state => ({
+          calorieExpenditure: state.calorieExpenditure.map(ce => ce.id === calorieExpenditure.id ? updatedCalorieExpenditure : ce)
+        }));
+        
+        // Sincronização automática com Firebase
+        await syncToFirebase(() => firebaseSyncService.saveCalorieExpenditure(updatedCalorieExpenditure), `calorie expenditure ${updatedCalorieExpenditure.calories_burned} kcal`);
+        console.log(`✅ Calorie expenditure atualizado (LOCAL → FIREBASE): ${updatedCalorieExpenditure.calories_burned} kcal (${updatedCalorieExpenditure.dateISO})`);
+      },
+
+      deleteCalorieExpenditure: async (id) => {
+        const calorieExpenditure = get().calorieExpenditure.find(ce => ce.id === id);
+        await database.deleteCalorieExpenditure(id);
+        
+        console.log(`🗑️ Calorie expenditure deletado: ${calorieExpenditure?.calories_burned} kcal (${calorieExpenditure?.dateISO})`);
+        set(state => ({
+          calorieExpenditure: state.calorieExpenditure.filter(ce => ce.id !== id)
+        }));
+        
+        // Sincronização automática com Firebase
+        if (calorieExpenditure) {
+          console.log(`🔄 Sincronizando deleção com Firebase: ${calorieExpenditure.calories_burned} kcal (${calorieExpenditure.dateISO})`);
+          await syncToFirebase(() => firebaseSyncService.deleteCalorieExpenditure(id), `calorie expenditure ${calorieExpenditure.calories_burned} kcal (${calorieExpenditure.dateISO})`);
+          console.log(`✅ Calorie expenditure deletado (LOCAL → FIREBASE): ${calorieExpenditure.calories_burned} kcal (${calorieExpenditure.dateISO})`);
+        } else {
+          console.warn(`⚠️ Calorie expenditure não encontrado para sincronização: ${id}`);
+        }
+      },
+
   // Ações de consulta
   getEntriesForDate: (userId, date) => {
     const { entries } = get();
@@ -471,6 +540,22 @@ export const useAppStore = create<AppState>()(
           entry.userId === userId && 
           entry.dateISO >= startDate && 
           entry.dateISO <= endDate
+        );
+      },
+
+      getCalorieExpenditureForDate: (userId, date) => {
+        const { calorieExpenditure } = get();
+        return calorieExpenditure.filter(ce => 
+          ce.userId === userId && ce.dateISO === date
+        );
+      },
+
+      getCalorieExpenditureForDateRange: (userId, startDate, endDate) => {
+        const { calorieExpenditure } = get();
+        return calorieExpenditure.filter(ce => 
+          ce.userId === userId && 
+          ce.dateISO >= startDate && 
+          ce.dateISO <= endDate
         );
       },
 
@@ -516,6 +601,28 @@ export const useAppStore = create<AppState>()(
       getDailyTotals: (userId, date) => {
         const entries = get().getEntriesForDate(userId, date);
         return calculateTotals(entries);
+      },
+
+      getDailyCalorieBalance: (userId, date) => {
+        const entries = get().getEntriesForDate(userId, date);
+        const calorieExpenditure = get().getCalorieExpenditureForDate(userId, date);
+        
+        const intake = calculateTotals(entries).kcal;
+        const expenditure = calorieExpenditure.reduce((sum, ce) => sum + ce.calories_burned, 0);
+        const balance = intake - expenditure;
+        
+        return { intake, expenditure, balance };
+      },
+
+      getCalorieBalanceForDateRange: (userId, startDate, endDate) => {
+        const entries = get().getEntriesForDateRange(userId, startDate, endDate);
+        const calorieExpenditure = get().getCalorieExpenditureForDateRange(userId, startDate, endDate);
+        
+        const intake = calculateTotals(entries).kcal;
+        const expenditure = calorieExpenditure.reduce((sum, ce) => sum + ce.calories_burned, 0);
+        const balance = intake - expenditure;
+        
+        return { intake, expenditure, balance };
       },
     }),
     {

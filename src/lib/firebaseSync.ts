@@ -18,7 +18,7 @@ import {
   User
 } from 'firebase/auth';
 import { db, auth } from './firebase';
-import { FoodItem, Entry, UserPrefs } from '../types';
+import { FoodItem, Entry, UserPrefs, CalorieExpenditure } from '../types';
 
 class FirebaseSyncService {
   private unsubscribe: (() => void) | null = null;
@@ -203,8 +203,8 @@ class FirebaseSyncService {
   }
 
   // Carregar dados seletivamente baseado no que precisa ser sincronizado
-  async loadSelectiveData(needsFoods: boolean, needsEntries: boolean, userId: string): Promise<{ foods: FoodItem[]; entries: Entry[] }> {
-    const results = { foods: [] as FoodItem[], entries: [] as Entry[] };
+  async loadSelectiveData(needsFoods: boolean, needsEntries: boolean, needsCalorieExpenditure: boolean, userId: string): Promise<{ foods: FoodItem[]; entries: Entry[]; calorieExpenditure: CalorieExpenditure[] }> {
+    const results = { foods: [] as FoodItem[], entries: [] as Entry[], calorieExpenditure: [] as CalorieExpenditure[] };
     
     if (needsFoods) {
       console.log('🍎 Carregando alimentos do Firebase...');
@@ -218,6 +218,13 @@ class FirebaseSyncService {
       results.entries = await this.loadEntries(userId);
     } else {
       console.log('✅ Entradas já sincronizadas - usando dados locais');
+    }
+    
+    if (needsCalorieExpenditure) {
+      console.log('🔥 Carregando calorie expenditure do Firebase...');
+      results.calorieExpenditure = await this.loadCalorieExpenditureForUser(userId);
+    } else {
+      console.log('✅ Calorie expenditure já sincronizado - usando dados locais');
     }
     
     return results;
@@ -379,6 +386,81 @@ class FirebaseSyncService {
     console.log(`🗑️ Entrada deletada: ${id}`);
   }
 
+  // Calorie Expenditure
+  async saveCalorieExpenditure(calorieExpenditure: CalorieExpenditure): Promise<void> {
+    const now = Date.now();
+    
+    const calorieExpenditureData: any = {
+      id: calorieExpenditure.id,
+      userId: calorieExpenditure.userId,
+      dateISO: calorieExpenditure.dateISO,
+      calories_burned: calorieExpenditure.calories_burned,
+      source: calorieExpenditure.source,
+      updatedAt: now,
+      createdAt: calorieExpenditure.createdAt || now
+    };
+
+    // Adicionar campos opcionais apenas se não forem undefined
+    if (calorieExpenditure.note !== undefined) {
+      calorieExpenditureData.note = calorieExpenditure.note;
+    }
+
+    await setDoc(doc(db, 'calorieExpenditure', calorieExpenditure.id), calorieExpenditureData);
+  }
+
+  async loadCalorieExpenditure(): Promise<CalorieExpenditure[]> {
+    const q = query(collection(db, 'calorieExpenditure'), orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+    
+    const calorieExpenditure: CalorieExpenditure[] = [];
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      calorieExpenditure.push({
+        id: data.id,
+        userId: data.userId,
+        dateISO: data.dateISO,
+        calories_burned: data.calories_burned,
+        source: data.source,
+        note: data.note,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt
+      });
+    });
+    
+    return calorieExpenditure;
+  }
+
+  async loadCalorieExpenditureForUser(userId: string): Promise<CalorieExpenditure[]> {
+    const q = query(
+      collection(db, 'calorieExpenditure'), 
+      where('userId', '==', userId),
+      orderBy('dateISO', 'desc')
+    );
+    const querySnapshot = await getDocs(q);
+    
+    const calorieExpenditure: CalorieExpenditure[] = [];
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      calorieExpenditure.push({
+        id: data.id,
+        userId: data.userId,
+        dateISO: data.dateISO,
+        calories_burned: data.calories_burned,
+        source: data.source,
+        note: data.note,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt
+      });
+    });
+    
+    return calorieExpenditure;
+  }
+
+  async deleteCalorieExpenditure(id: string): Promise<void> {
+    await deleteDoc(doc(db, 'calorieExpenditure', id));
+    console.log(`🗑️ Calorie expenditure deletado: ${id}`);
+  }
+
   // Users
   async saveUsers(users: UserPrefs[]): Promise<void> {
     console.log('👥 Salvando usuários (LOCAL → FIREBASE):', users);
@@ -495,14 +577,15 @@ class FirebaseSyncService {
   }
 
   // Load all data
-  async loadAllUsersData(): Promise<{ entries: Entry[]; foods: FoodItem[]; users: UserPrefs[] }> {
-    const [entries, foods, users] = await Promise.all([
+  async loadAllUsersData(): Promise<{ entries: Entry[]; foods: FoodItem[]; users: UserPrefs[]; calorieExpenditure: CalorieExpenditure[] }> {
+    const [entries, foods, users, calorieExpenditure] = await Promise.all([
       this.loadAllEntries(),
       this.loadFoods(),
-      this.loadUsers()
+      this.loadUsers(),
+      this.loadCalorieExpenditure()
     ]);
 
-    return { entries, foods, users };
+    return { entries, foods, users, calorieExpenditure };
   }
 
   getUserIdFromEmail(email: string): string {

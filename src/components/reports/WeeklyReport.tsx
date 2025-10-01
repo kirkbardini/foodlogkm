@@ -4,6 +4,7 @@ import { Card } from '../ui/Card';
 import { CompactNutritionCard } from '../ui/CompactNutritionCard';
 import { Button } from '../ui/Button';
 import { formatNumber } from '../../lib/calculations';
+import { useExportReport } from '../../hooks/useExportReport';
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, LabelList } from 'recharts';
 import { format, startOfWeek, endOfWeek, addDays, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -14,7 +15,8 @@ interface WeeklyReportProps {
 }
 
 export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekChange }) => {
-  const { currentUser, users, getEntriesForDateRange } = useAppStore();
+  const { currentUser, users, getEntriesForDateRange, getCalorieBalanceForDateRange } = useAppStore();
+  const { exportToPDF } = useExportReport();
   
   const currentUserData = users.find(u => u.id === currentUser);
   const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 }); // Segunda-feira
@@ -32,6 +34,7 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
     const date = addDays(weekStart, i);
     const dateISO = format(date, 'yyyy-MM-dd');
     const entries = getEntriesForDateRange(currentUser, dateISO, dateISO);
+    const calorieBalance = getCalorieBalanceForDateRange(currentUser, dateISO, dateISO);
     
     const totals = entries.reduce((sum, entry) => ({
       protein_g: sum.protein_g + entry.protein_g,
@@ -49,7 +52,10 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
       dayName: format(date, 'EEE', { locale: ptBR }),
       dayNumber: format(date, 'dd'),
       goal: adjustedDailyGoal,
-      ...totals
+      ...totals,
+      calorieIntake: calorieBalance.intake,
+      calorieExpenditure: calorieBalance.expenditure,
+      calorieBalance: calorieBalance.balance
     };
   });
 
@@ -204,9 +210,23 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
     onWeekChange(startOfWeek(new Date(), { weekStartsOn: 1 }));
   };
 
+  const handleExportPDF = async () => {
+    try {
+      const weekRange = `${format(weekStart, 'dd/MM/yyyy', { locale: ptBR })} - ${format(weekEnd, 'dd/MM/yyyy', { locale: ptBR })}`;
+      await exportToPDF('weekly-report-content', {
+        filename: `relatorio-semanal-${format(weekStart, 'yyyy-MM-dd')}`,
+        title: 'Relatório Semanal',
+        subtitle: weekRange
+      });
+    } catch (error) {
+      console.error('Erro ao exportar relatório semanal:', error);
+      alert('Erro ao exportar relatório. Tente novamente.');
+    }
+  };
+
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" id="weekly-report-content">
       {/* Header */}
       <div className="text-center">
         <h2 className="text-2xl font-bold text-gray-900">Relatório Semanal</h2>
@@ -215,16 +235,26 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
         </p>
       </div>
 
-      {/* Week Navigation */}
-      <div className="flex justify-center space-x-2">
-        <Button onClick={handlePreviousWeek} variant="secondary" size="sm">
-          ← Semana Anterior
-        </Button>
-        <Button onClick={handleCurrentWeek} variant="secondary" size="sm">
-          Semana Atual
-        </Button>
-        <Button onClick={handleNextWeek} variant="secondary" size="sm">
-          Próxima Semana →
+      {/* Week Navigation and Export */}
+      <div className="flex justify-center items-center space-x-4">
+        <div className="flex space-x-2">
+          <Button onClick={handlePreviousWeek} variant="secondary" size="sm">
+            ← Semana Anterior
+          </Button>
+          <Button onClick={handleCurrentWeek} variant="secondary" size="sm">
+            Semana Atual
+          </Button>
+          <Button onClick={handleNextWeek} variant="secondary" size="sm">
+            Próxima Semana →
+          </Button>
+        </div>
+        <Button 
+          onClick={handleExportPDF} 
+          variant="primary" 
+          size="sm"
+          className="bg-green-600 hover:bg-green-700 text-white"
+        >
+          📄 Exportar PDF
         </Button>
       </div>
 
@@ -330,6 +360,7 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
                 <YAxis 
                   tick={{ fontSize: 12 }}
                   domain={[0, 'dataMax + 20']}
+                  tickFormatter={(value) => (Math.round(value / 100) * 100).toString()}
                 />
                 <Tooltip 
                   formatter={(value, name) => {
@@ -414,7 +445,10 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
                   dataKey="dayName" 
                   tick={{ fontSize: 12 }}
                 />
-                <YAxis tick={{ fontSize: 12 }} />
+                <YAxis 
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(value) => (Math.round(value / 100) * 100).toString()}
+                />
                 <Tooltip 
                   formatter={(value, name) => {
                     if (name === 'kcal') return [`${value} kcal`, 'Calorias Consumidas'];
@@ -582,6 +616,90 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
                   </span>
                 </span>
               </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Weekly Calorie Balance Chart */}
+      <Card>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Saldo Calórico Semanal</h3>
+        <div className="h-96">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart 
+              data={dailyData}
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis 
+                dataKey="dayName" 
+                tick={{ fontSize: 12 }}
+              />
+              <YAxis 
+                tick={{ fontSize: 12 }}
+                domain={[0, 'dataMax + 200']}
+                tickFormatter={(value) => (Math.round(value / 100) * 100).toString()}
+              />
+              <Tooltip 
+                formatter={(value, name) => {
+                  const intValue = Math.round(value as number);
+                  if (name === 'calorieIntake') return [`${intValue} kcal`, 'Ingestão'];
+                  if (name === 'calorieExpenditure') return [`${intValue} kcal`, 'Consumo'];
+                  if (name === 'calorieBalance') return [`${intValue} kcal`, 'Saldo'];
+                  return [`${intValue} kcal`, name];
+                }}
+              />
+              <Bar 
+                dataKey="calorieIntake" 
+                fill="#10B981" 
+                name="calorieIntake"
+                radius={[2, 2, 0, 0]}
+              />
+              <Bar 
+                dataKey="calorieExpenditure" 
+                fill="#F59E0B" 
+                name="calorieExpenditure"
+                radius={[2, 2, 0, 0]}
+              />
+              <Bar 
+                dataKey="calorieBalance" 
+                fill="#3B82F6" 
+                name="calorieBalance"
+                radius={[2, 2, 0, 0]}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        
+        {/* Weekly Calorie Balance Summary */}
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-green-50 rounded-lg p-3">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 rounded-full bg-green-500"></div>
+              <span className="text-sm font-medium text-green-800">Total Ingestão</span>
+            </div>
+            <div className="text-lg font-semibold text-green-900">
+              {Math.round(dailyData.reduce((sum, day) => sum + day.calorieIntake, 0))} kcal
+            </div>
+          </div>
+          
+          <div className="bg-orange-50 rounded-lg p-3">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+              <span className="text-sm font-medium text-orange-800">Total Consumo</span>
+            </div>
+            <div className="text-lg font-semibold text-orange-900">
+              {Math.round(dailyData.reduce((sum, day) => sum + day.calorieExpenditure, 0))} kcal
+            </div>
+          </div>
+          
+          <div className="bg-blue-50 rounded-lg p-3">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+              <span className="text-sm font-medium text-blue-800">Saldo Semanal</span>
+            </div>
+            <div className="text-lg font-semibold text-blue-900">
+              {Math.round(dailyData.reduce((sum, day) => sum + day.calorieBalance, 0))} kcal
             </div>
           </div>
         </div>

@@ -97,7 +97,7 @@ export const Dashboard: React.FC = () => {
       {/* Quick Actions */}
       <Card>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Ações Rápidas</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           <button
             onClick={() => {
               const event = new CustomEvent('openFoodEntry');
@@ -121,6 +121,18 @@ export const Dashboard: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
             </svg>
             <span className="truncate">Adicionar Água</span>
+          </button>
+          <button
+            onClick={() => {
+              const event = new CustomEvent('openCalorieExpenditureManager');
+              window.dispatchEvent(event);
+            }}
+            className="inline-flex items-center justify-center px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 w-full"
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <span className="truncate">Consumo Calórico</span>
           </button>
           <button
             onClick={() => {

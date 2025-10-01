@@ -15,6 +15,11 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
     
+    // Regras para calorie expenditure (usuários podem editar qualquer registro)
+    match /calorieExpenditure/{expenditureId} {
+      allow read, write: if request.auth != null;
+    }
+    
     // Regras para usuários (cada usuário pode editar seus próprios dados)
     match /users/{userId} {
       allow read, write: if request.auth != null;

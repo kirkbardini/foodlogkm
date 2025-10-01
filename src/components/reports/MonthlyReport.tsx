@@ -4,6 +4,7 @@ import { Card } from '../ui/Card';
 import { CompactNutritionCard } from '../ui/CompactNutritionCard';
 import { Button } from '../ui/Button';
 import { formatNumber } from '../../lib/calculations';
+import { useExportReport } from '../../hooks/useExportReport';
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, LabelList } from 'recharts';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths, eachDayOfInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -14,7 +15,8 @@ interface MonthlyReportProps {
 }
 
 export const MonthlyReport: React.FC<MonthlyReportProps> = ({ monthStart, onMonthChange }) => {
-  const { currentUser, users, getEntriesForDateRange } = useAppStore();
+  const { currentUser, users, getEntriesForDateRange, getCalorieBalanceForDateRange } = useAppStore();
+  const { exportToPDF } = useExportReport();
   
   const currentUserData = users.find(u => u.id === currentUser);
   const monthEnd = endOfMonth(monthStart);
@@ -32,6 +34,7 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({ monthStart, onMont
   const dailyData = monthDays.map(date => {
     const dateISO = format(date, 'yyyy-MM-dd');
     const entries = getEntriesForDateRange(currentUser, dateISO, dateISO);
+    const calorieBalance = getCalorieBalanceForDateRange(currentUser, dateISO, dateISO);
     
     const totals = entries.reduce((sum, entry) => ({
       protein_g: sum.protein_g + entry.protein_g,
@@ -45,7 +48,10 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({ monthStart, onMont
       date: dateISO,
       dayName: format(date, 'EEE', { locale: ptBR }),
       dayNumber: format(date, 'dd'),
-      ...totals
+      ...totals,
+      calorieIntake: calorieBalance.intake,
+      calorieExpenditure: calorieBalance.expenditure,
+      calorieBalance: calorieBalance.balance
     };
   });
 
@@ -194,6 +200,20 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({ monthStart, onMont
     onMonthChange(startOfMonth(new Date()));
   };
 
+  const handleExportPDF = async () => {
+    try {
+      const monthName = format(monthStart, 'MMMM yyyy', { locale: ptBR });
+      await exportToPDF('monthly-report-content', {
+        filename: `relatorio-mensal-${format(monthStart, 'yyyy-MM')}`,
+        title: 'Relatório Mensal',
+        subtitle: monthName
+      });
+    } catch (error) {
+      console.error('Erro ao exportar relatório mensal:', error);
+      alert('Erro ao exportar relatório. Tente novamente.');
+    }
+  };
+
   // Agrupar dados por semana para o gráfico
   const weeklyData = [];
   const weeklyFactor = currentUserData?.weeklyGoalFactor || 1.0;
@@ -217,7 +237,7 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({ monthStart, onMont
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" id="monthly-report-content">
       {/* Header */}
       <div className="text-center">
         <h2 className="text-2xl font-bold text-gray-900">Relatório Mensal</h2>
@@ -226,16 +246,26 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({ monthStart, onMont
         </p>
       </div>
 
-      {/* Month Navigation */}
-      <div className="flex justify-center space-x-2">
-        <Button onClick={handlePreviousMonth} variant="secondary" size="sm">
-          ← Mês Anterior
-        </Button>
-        <Button onClick={handleCurrentMonth} variant="secondary" size="sm">
-          Mês Atual
-        </Button>
-        <Button onClick={handleNextMonth} variant="secondary" size="sm">
-          Próximo Mês →
+      {/* Month Navigation and Export */}
+      <div className="flex justify-center items-center space-x-4">
+        <div className="flex space-x-2">
+          <Button onClick={handlePreviousMonth} variant="secondary" size="sm">
+            ← Mês Anterior
+          </Button>
+          <Button onClick={handleCurrentMonth} variant="secondary" size="sm">
+            Mês Atual
+          </Button>
+          <Button onClick={handleNextMonth} variant="secondary" size="sm">
+            Próximo Mês →
+          </Button>
+        </div>
+        <Button 
+          onClick={handleExportPDF} 
+          variant="primary" 
+          size="sm"
+          className="bg-green-600 hover:bg-green-700 text-white"
+        >
+          📄 Exportar PDF
         </Button>
       </div>
 
@@ -569,6 +599,98 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({ monthStart, onMont
                   </span>
                 </span>
               </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Monthly Calorie Balance Chart */}
+      <Card>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Saldo Calórico Mensal</h3>
+        <div className="h-96">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart 
+              data={dailyData}
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis 
+                dataKey="dayNumber" 
+                tick={{ fontSize: 10 }}
+                interval="preserveStartEnd"
+              />
+              <YAxis 
+                tick={{ fontSize: 12 }}
+                domain={[0, 'dataMax + 200']}
+                tickFormatter={(value) => (Math.round(value / 100) * 100).toString()}
+              />
+              <Tooltip 
+                formatter={(value, name) => {
+                  const intValue = Math.round(value as number);
+                  if (name === 'calorieIntake') return [`${intValue} kcal`, 'Ingestão'];
+                  if (name === 'calorieExpenditure') return [`${intValue} kcal`, 'Consumo'];
+                  if (name === 'calorieBalance') return [`${intValue} kcal`, 'Saldo'];
+                  return [`${intValue} kcal`, name];
+                }}
+                labelFormatter={(value, payload) => {
+                  if (payload && payload[0]) {
+                    const dayData = payload[0].payload;
+                    return `Dia ${dayData.dayNumber} (${dayData.dayName})`;
+                  }
+                  return `Dia ${value}`;
+                }}
+              />
+              <Bar 
+                dataKey="calorieIntake" 
+                fill="#10B981" 
+                name="calorieIntake"
+                radius={[2, 2, 0, 0]}
+              />
+              <Bar 
+                dataKey="calorieExpenditure" 
+                fill="#F59E0B" 
+                name="calorieExpenditure"
+                radius={[2, 2, 0, 0]}
+              />
+              <Bar 
+                dataKey="calorieBalance" 
+                fill="#3B82F6" 
+                name="calorieBalance"
+                radius={[2, 2, 0, 0]}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        
+        {/* Monthly Calorie Balance Summary */}
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-green-50 rounded-lg p-3">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 rounded-full bg-green-500"></div>
+              <span className="text-sm font-medium text-green-800">Total Ingestão</span>
+            </div>
+            <div className="text-lg font-semibold text-green-900">
+              {Math.round(dailyData.reduce((sum, day) => sum + day.calorieIntake, 0))} kcal
+            </div>
+          </div>
+          
+          <div className="bg-orange-50 rounded-lg p-3">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+              <span className="text-sm font-medium text-orange-800">Total Consumo</span>
+            </div>
+            <div className="text-lg font-semibold text-orange-900">
+              {Math.round(dailyData.reduce((sum, day) => sum + day.calorieExpenditure, 0))} kcal
+            </div>
+          </div>
+          
+          <div className="bg-blue-50 rounded-lg p-3">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+              <span className="text-sm font-medium text-blue-800">Saldo Mensal</span>
+            </div>
+            <div className="text-lg font-semibold text-blue-900">
+              {Math.round(dailyData.reduce((sum, day) => sum + day.calorieBalance, 0))} kcal
             </div>
           </div>
         </div>

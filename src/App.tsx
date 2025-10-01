@@ -6,6 +6,8 @@ import { FoodEntry } from './components/FoodEntry';
 import { DailyEntries } from './components/DailyEntries';
 import { FoodsManager } from './components/FoodsManager';
 import { AddWaterModal } from './components/AddWaterModal';
+import { AddCalorieExpenditureModal } from './components/AddCalorieExpenditureModal';
+import { CalorieExpenditureManager } from './components/CalorieExpenditureManager';
 import { ReportsDashboard } from './components/reports/ReportsDashboard';
 import { FirebaseSync } from './components/FirebaseSync';
 import { LoadingModal } from './components/LoadingModal';
@@ -26,6 +28,9 @@ function App() {
   const [showFoodsManager, setShowFoodsManager] = useState(false);
   const [showReports, setShowReports] = useState(false);
   const [showAddWater, setShowAddWater] = useState(false);
+  const [showAddCalorieExpenditure, setShowAddCalorieExpenditure] = useState(false);
+  const [showCalorieExpenditureManager, setShowCalorieExpenditureManager] = useState(false);
+  const [calorieExpenditureDate, setCalorieExpenditureDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [showFirebaseSync, setShowFirebaseSync] = useState(false);
   const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
   const [isFirebaseLoading, setIsFirebaseLoading] = useState(false);
@@ -52,6 +57,15 @@ function App() {
       setShowAddWater(true);
     };
 
+    const handleOpenAddCalorieExpenditure = () => {
+      setCalorieExpenditureDate(new Date().toISOString().split('T')[0]);
+      setShowAddCalorieExpenditure(true);
+    };
+
+    const handleOpenCalorieExpenditureManager = () => {
+      setShowCalorieExpenditureManager(true);
+    };
+
     const handleOpenFirebaseSync = () => {
       setShowFirebaseSync(true);
     };
@@ -60,6 +74,8 @@ function App() {
     window.addEventListener('openFoodsManager', handleOpenFoodsManager);
     window.addEventListener('openReports', handleOpenReports);
     window.addEventListener('openAddWater', handleOpenAddWater);
+    window.addEventListener('openAddCalorieExpenditure', handleOpenAddCalorieExpenditure);
+    window.addEventListener('openCalorieExpenditureManager', handleOpenCalorieExpenditureManager);
     window.addEventListener('openFirebaseSync', handleOpenFirebaseSync);
 
     return () => {
@@ -67,6 +83,8 @@ function App() {
       window.removeEventListener('openFoodsManager', handleOpenFoodsManager);
       window.removeEventListener('openReports', handleOpenReports);
       window.removeEventListener('openAddWater', handleOpenAddWater);
+      window.removeEventListener('openAddCalorieExpenditure', handleOpenAddCalorieExpenditure);
+      window.removeEventListener('openCalorieExpenditureManager', handleOpenCalorieExpenditureManager);
       window.removeEventListener('openFirebaseSync', handleOpenFirebaseSync);
     };
   }, []);
@@ -91,6 +109,8 @@ function App() {
     setShowFoodsManager(false);
     setShowReports(false);
     setShowAddWater(false);
+    setShowAddCalorieExpenditure(false);
+    setShowCalorieExpenditureManager(false);
     setEditingEntry(null);
   };
 
@@ -153,6 +173,18 @@ function App() {
 
       <AddWaterModal
         isOpen={showAddWater}
+        onClose={handleCloseModals}
+      />
+
+      <AddCalorieExpenditureModal
+        isOpen={showAddCalorieExpenditure}
+        onClose={handleCloseModals}
+        selectedDate={calorieExpenditureDate}
+        onDateChange={setCalorieExpenditureDate}
+      />
+
+      <CalorieExpenditureManager
+        isOpen={showCalorieExpenditureManager}
         onClose={handleCloseModals}
       />
 

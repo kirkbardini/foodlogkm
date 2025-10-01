@@ -1,5 +1,5 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
-import { FoodItem, Entry, UserPrefs, AppStateBackup } from '../types';
+import { FoodItem, Entry, UserPrefs, AppStateBackup, CalorieExpenditure } from '../types';
 
 interface FoodLogDB extends DBSchema {
   foods: {
@@ -10,6 +10,11 @@ interface FoodLogDB extends DBSchema {
   entries: {
     key: string;
     value: Entry;
+    indexes: { 'by-user-date': [string, string] };
+  };
+  calorieExpenditure: {
+    key: string;
+    value: CalorieExpenditure;
     indexes: { 'by-user-date': [string, string] };
   };
   users: {
@@ -26,7 +31,7 @@ class Database {
   private db: IDBPDatabase<FoodLogDB> | null = null;
 
   async init(): Promise<void> {
-    this.db = await openDB<FoodLogDB>('foodlog-km', 1, {
+    this.db = await openDB<FoodLogDB>('foodlog-km', 2, {
       upgrade(db) {
         // Foods store
         if (!db.objectStoreNames.contains('foods')) {
@@ -38,6 +43,12 @@ class Database {
         if (!db.objectStoreNames.contains('entries')) {
           const entryStore = db.createObjectStore('entries', { keyPath: 'id' });
           entryStore.createIndex('by-user-date', ['userId', 'dateISO']);
+        }
+
+        // Calorie Expenditure store
+        if (!db.objectStoreNames.contains('calorieExpenditure')) {
+          const calorieExpenditureStore = db.createObjectStore('calorieExpenditure', { keyPath: 'id' });
+          calorieExpenditureStore.createIndex('by-user-date', ['userId', 'dateISO']);
         }
 
         // Users store
@@ -131,6 +142,37 @@ class Database {
     await db.delete('entries', id);
   }
 
+  // Calorie Expenditure
+  async getAllCalorieExpenditure(): Promise<CalorieExpenditure[]> {
+    const db = this.ensureDB();
+    return await db.getAll('calorieExpenditure');
+  }
+
+  async getCalorieExpenditureForDate(userId: string, date: string): Promise<CalorieExpenditure[]> {
+    const db = this.ensureDB();
+    return await db.getAllFromIndex('calorieExpenditure', 'by-user-date', IDBKeyRange.only([userId, date]));
+  }
+
+  async getCalorieExpenditureForDateRange(userId: string, startDate: string, endDate: string): Promise<CalorieExpenditure[]> {
+    const db = this.ensureDB();
+    return await db.getAllFromIndex('calorieExpenditure', 'by-user-date', IDBKeyRange.bound([userId, startDate], [userId, endDate]));
+  }
+
+  async addCalorieExpenditure(calorieExpenditure: CalorieExpenditure): Promise<void> {
+    const db = this.ensureDB();
+    await db.add('calorieExpenditure', calorieExpenditure);
+  }
+
+  async updateCalorieExpenditure(calorieExpenditure: CalorieExpenditure): Promise<void> {
+    const db = this.ensureDB();
+    await db.put('calorieExpenditure', calorieExpenditure);
+  }
+
+  async deleteCalorieExpenditure(id: string): Promise<void> {
+    const db = this.ensureDB();
+    await db.delete('calorieExpenditure', id);
+  }
+
   // Users
   async getAllUsers(): Promise<UserPrefs[]> {
     const db = this.ensureDB();
@@ -156,9 +198,10 @@ class Database {
 
   // Backup
   async exportBackup(): Promise<AppStateBackup> {
-    const [foods, entries, users, settings] = await Promise.all([
+    const [foods, entries, calorieExpenditure, users, settings] = await Promise.all([
       this.getAllFoods(),
       this.getAllEntries(),
+      this.getAllCalorieExpenditure(),
       this.getAllUsers(),
       this.getSetting('app_settings')
     ]);
@@ -181,6 +224,7 @@ class Database {
     return {
       foods,
       entries,
+      calorieExpenditure,
       users: validUsers,
       settings: settings || { theme: 'light', language: 'pt', defaultUnit: 'g' },
       version: '1.0.0',
@@ -190,11 +234,12 @@ class Database {
 
   async importBackup(backup: AppStateBackup): Promise<void> {
     const db = this.ensureDB();
-    const tx = db.transaction(['foods', 'entries', 'users', 'settings'], 'readwrite');
+    const tx = db.transaction(['foods', 'entries', 'calorieExpenditure', 'users', 'settings'], 'readwrite');
 
     // Clear existing data
     await tx.objectStore('foods').clear();
     await tx.objectStore('entries').clear();
+    await tx.objectStore('calorieExpenditure').clear();
     await tx.objectStore('users').clear();
     await tx.objectStore('settings').clear();
 
@@ -204,6 +249,9 @@ class Database {
     }
     for (const entry of backup.entries) {
       await tx.objectStore('entries').add(entry);
+    }
+    for (const calorieExpenditure of backup.calorieExpenditure || []) {
+      await tx.objectStore('calorieExpenditure').add(calorieExpenditure);
     }
     for (const user of backup.users) {
       await tx.objectStore('users').add(user);
@@ -291,17 +339,58 @@ class Database {
     return { removed, kept };
   }
 
+  // Função para limpar duplicações de calorie expenditure
+  async cleanDuplicateCalorieExpenditure(): Promise<{ removed: number; kept: number }> {
+    const db = this.ensureDB();
+    const allCalorieExpenditure = await db.getAll('calorieExpenditure');
+    
+    // Agrupa por userId, dateISO para identificar duplicatas
+    const calorieExpenditureGroups = new Map<string, CalorieExpenditure[]>();
+    
+    for (const calorieExpenditure of allCalorieExpenditure) {
+      const key = `${calorieExpenditure.userId}-${calorieExpenditure.dateISO}`;
+      if (!calorieExpenditureGroups.has(key)) {
+        calorieExpenditureGroups.set(key, []);
+      }
+      calorieExpenditureGroups.get(key)!.push(calorieExpenditure);
+    }
+    
+    let removed = 0;
+    let kept = 0;
+    
+    // Para cada grupo, mantém apenas o primeiro item
+    for (const [, calorieExpenditureList] of calorieExpenditureGroups) {
+      if (calorieExpenditureList.length > 1) {
+        // Mantém o primeiro, remove os demais
+        const toRemove = calorieExpenditureList.slice(1);
+        
+        for (const calorieExpenditure of toRemove) {
+          await db.delete('calorieExpenditure', calorieExpenditure.id);
+          removed++;
+        }
+        kept++;
+      } else {
+        kept++;
+      }
+    }
+    
+    console.log(`🧹 Limpeza de calorie expenditure: ${removed} duplicatas removidas, ${kept} mantidos`);
+    return { removed, kept };
+  }
+
   // Função para limpar todas as duplicações
-  async cleanAllDuplicates(): Promise<{ foods: { removed: number; kept: number }; entries: { removed: number; kept: number } }> {
+  async cleanAllDuplicates(): Promise<{ foods: { removed: number; kept: number }; entries: { removed: number; kept: number }; calorieExpenditure: { removed: number; kept: number } }> {
     console.log('🧹 Iniciando limpeza de duplicações...');
     
     const foodsResult = await this.cleanDuplicateFoods();
     const entriesResult = await this.cleanDuplicateEntries();
+    const calorieExpenditureResult = await this.cleanDuplicateCalorieExpenditure();
     
     console.log('✅ Limpeza de duplicações concluída');
     return {
       foods: foodsResult,
-      entries: entriesResult
+      entries: entriesResult,
+      calorieExpenditure: calorieExpenditureResult
     };
   }
 

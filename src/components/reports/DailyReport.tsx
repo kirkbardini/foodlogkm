@@ -14,10 +14,12 @@ interface DailyReportProps {
 }
 
 export const DailyReport: React.FC<DailyReportProps> = ({ date, onDateChange }) => {
-  const { currentUser, users, getEntriesForDate } = useAppStore();
+  const { currentUser, users, getEntriesForDate, getCalorieExpenditureForDate, getDailyCalorieBalance } = useAppStore();
   
   const currentUserData = users.find(u => u.id === currentUser);
   const entries = getEntriesForDate(currentUser, date);
+  const calorieExpenditure = getCalorieExpenditureForDate(currentUser, date);
+  const calorieBalance = getDailyCalorieBalance(currentUser, date);
   
   const dailyGoal = currentUserData?.goals || {
     protein_g: 160,
@@ -290,147 +292,70 @@ export const DailyReport: React.FC<DailyReportProps> = ({ date, onDateChange }) 
       {/* Meal Distribution Chart */}
       <MealDistributionChart entries={entries} />
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Macronutrients Chart */}
-        <Card>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Macronutrientes</h3>
-        <div className="h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart 
-              data={macroChartData}
-              margin={{ top: 40, right: 30, left: 20, bottom: 5 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="macro"
-                tick={{ fontSize: 12 }}
-              />
-              <YAxis 
-                tick={{ fontSize: 12 }}
-                domain={[0, 'dataMax + 20']}
-              />
-                <Tooltip 
-                  formatter={(value, name) => {
-                    if (name === 'consumed') return [`${value}g`, 'Consumido'];
-                    if (name === 'goal') return [`${value}g`, 'Meta'];
-                    if (name === 'minimum') return [`${value}g`, 'Mínimo Recomendado'];
-                    return [`${value}g`, name];
-                  }}
-                />
-                {/* Barra de fundo para o mínimo (primeira - acinzentada) */}
-                <Bar 
-                  dataKey="minimum" 
-                  fill="#E5E7EB" 
-                  name="minimum"
-                  radius={[2, 2, 2, 2]}
-                  stroke="#9CA3AF"
-                  strokeWidth={1}
-                  strokeDasharray="2 2"
-                />
-                {/* Barra da meta (segunda - dark gray dashed) */}
-                <Bar 
-                  dataKey="goal" 
-                  fill="#374151" 
-                  name="goal"
-                  radius={[2, 2, 2, 2]}
-                  stroke="#374151"
-                  strokeWidth={1}
-                  strokeDasharray="3 3"
-                />
-                {/* Barra do consumo (terceira - cor dinâmica) */}
-                <Bar 
-                  dataKey="consumed" 
-                  name="consumed"
-                  radius={[2, 2, 2, 2]}
-                  strokeWidth={1}
-                >
-                  {macroChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.consumedColor} stroke={entry.consumedColor} />
-                  ))}
-                  <LabelList 
-                    dataKey="statusLabel" 
-                    position="top" 
-                    style={{ 
-                      fontSize: '11px', 
-                      fontWeight: 'bold',
-                      fill: '#374151'
-                    }}
-                    formatter={(value: string) => value}
-                    offset={5}
-                  />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          {/* Legenda personalizada */}
-          <div className="flex justify-center space-x-6 mt-4 text-sm">
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-3 bg-gray-300 rounded border border-gray-400" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 2px, #9CA3AF 2px, #9CA3AF 4px)' }}></div>
-              <span className="text-gray-600">Mínimo</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-3 bg-gray-600 rounded border border-gray-600" style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 2px, #374151 2px, #374151 4px)' }}></div>
-              <span className="text-gray-600">Meta</span>
-            </div>
-          </div>
-          {/* Legenda de cores dinâmicas */}
-          <div className="flex justify-center space-x-4 mt-2 text-xs text-gray-500">
-            <span>🔴 Abaixo</span>
-            <span>🟢 Ideal</span>
-            <span>🟡 Atenção</span>
-            <span>🔴 Excesso</span>
-          </div>
-        </Card>
 
-        {/* Macro Distribution */}
-        <Card>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Distribuição de Macronutrientes</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={macroData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {macroData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  formatter={(value) => {
-                    const total = macroData.reduce((sum, item) => sum + item.value, 0);
-                    const percentage = total > 0 ? Math.round((value as number) / total * 100) : 0;
-                    return [`${Math.round(value as number)}g (${percentage}%)`, '']}
-                  }
-                />
-              </PieChart>
-            </ResponsiveContainer>
+      {/* Calorie Balance Summary */}
+      <Card>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Saldo Calórico</h3>
+        
+        {/* Calorie Balance Summary */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-green-50 rounded-lg p-3">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 rounded-full bg-green-500"></div>
+              <span className="text-sm font-medium text-green-800">Ingestão</span>
+            </div>
+            <div className="text-lg font-semibold text-green-900">
+              {Math.round(calorieBalance.intake)} kcal
+            </div>
           </div>
-          <div className="flex justify-center space-x-4 mt-4">
-            {macroData.map((macro) => {
-              const total = macroData.reduce((sum, item) => sum + item.value, 0);
-              const percentage = total > 0 ? Math.round(macro.value / total * 100) : 0;
-              return (
-                <div key={macro.name} className="flex items-center space-x-2">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: macro.color }}
-                  />
-                  <span className="text-sm text-gray-600">
-                    {macro.name}: {Math.round(macro.value)}g ({percentage}%)
-                  </span>
-                </div>
-              );
-            })}
+          
+          <div className="bg-orange-50 rounded-lg p-3">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+              <span className="text-sm font-medium text-orange-800">Consumo</span>
+            </div>
+            <div className="text-lg font-semibold text-orange-900">
+              {Math.round(calorieBalance.expenditure)} kcal
+            </div>
           </div>
-        </Card>
-      </div>
+          
+          <div className={`rounded-lg p-3 ${
+            calorieBalance.balance >= 0 ? 'bg-blue-50' : 'bg-red-50'
+          }`}>
+            <div className="flex items-center space-x-2">
+              <div className={`w-3 h-3 rounded-full ${
+                calorieBalance.balance >= 0 ? 'bg-blue-500' : 'bg-red-500'
+              }`}></div>
+              <span className={`text-sm font-medium ${
+                calorieBalance.balance >= 0 ? 'text-blue-800' : 'text-red-800'
+              }`}>Saldo</span>
+            </div>
+            <div className={`text-lg font-semibold ${
+              calorieBalance.balance >= 0 ? 'text-blue-900' : 'text-red-900'
+            }`}>
+              {calorieBalance.balance >= 0 ? '+' : ''}{Math.round(calorieBalance.balance)} kcal
+            </div>
+          </div>
+        </div>
+
+        {/* Calorie Expenditure Details */}
+        {calorieExpenditure.length > 0 && (
+          <div className="mt-4 bg-gray-50 rounded-lg p-3">
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Detalhes do Consumo</h4>
+            {calorieExpenditure.map((ce, index) => (
+              <div key={ce.id || index} className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">
+                  {ce.source === 'garmin' ? 'Garmin' : 'Manual'}
+                  {ce.note && ` - ${ce.note}`}
+                </span>
+                <span className="font-medium text-gray-900">
+                  {Math.round(ce.calories_burned)} kcal
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   );
 };

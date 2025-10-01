@@ -71,9 +71,21 @@ export interface NutritionTotals {
   water_ml: number;
 }
 
+export interface CalorieExpenditure {
+  id: string;
+  userId: UserId;
+  dateISO: string;        // '2025-01-15'
+  calories_burned: number;
+  source: 'garmin' | 'manual';
+  note?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface AppStateBackup {
   foods: FoodItem[];
   entries: Entry[];
+  calorieExpenditure: CalorieExpenditure[];
   users: UserPrefs[];
   settings: AppSettings;
   version: string;

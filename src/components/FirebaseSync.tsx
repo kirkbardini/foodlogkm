@@ -111,9 +111,9 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
       console.log('🔄 Carregando dados do Firebase (FIREBASE → LOCAL)...');
       
       // Carregar todos os dados do Firebase (fonte da verdade)
-      const { entries: firebaseEntries, foods: firebaseFoods, users: firebaseUsers } = await firebaseSyncService.loadAllUsersData();
+      const { entries: firebaseEntries, foods: firebaseFoods, users: firebaseUsers, calorieExpenditure: firebaseCalorieExpenditure } = await firebaseSyncService.loadAllUsersData();
       
-      console.log(`📊 Dados do Firebase: ${firebaseEntries.length} entradas, ${firebaseFoods.length} alimentos, ${firebaseUsers.length} usuários`);
+      console.log(`📊 Dados do Firebase: ${firebaseEntries.length} entradas, ${firebaseFoods.length} alimentos, ${firebaseUsers.length} usuários, ${firebaseCalorieExpenditure.length} calorie expenditure`);
       
       // Atualizar dados locais com dados do Firebase (unidirecional)
       console.log('🔄 Atualizando dados locais com dados do Firebase...');
@@ -196,13 +196,50 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
         console.log(`✅ ${entriesToDelete.length} entradas deletadas localmente`);
       }
       
+      // 3. Atualizar calorie expenditure do Firebase
+      for (const calorieExpenditure of firebaseCalorieExpenditure) {
+        try {
+          const existingCalorieExpenditure = await database.getCalorieExpenditureForDate(calorieExpenditure.userId, calorieExpenditure.dateISO);
+          
+          if (existingCalorieExpenditure.length > 0) {
+            // Calorie expenditure existe - atualizar com dados do Firebase
+            await database.updateCalorieExpenditure(calorieExpenditure);
+          } else {
+            // Calorie expenditure não existe - adicionar do Firebase
+            await database.addCalorieExpenditure(calorieExpenditure);
+          }
+        } catch (error) {
+          console.warn(`⚠️ Erro ao sincronizar calorie expenditure ${calorieExpenditure.id}:`, error);
+        }
+      }
+      console.log(`🔥 ${firebaseCalorieExpenditure.length} calorie expenditure sincronizados do Firebase`);
+      
+      // 3.1. Detectar e remover calorie expenditure deletados no Firebase
+      const localCalorieExpenditure = await database.getAllCalorieExpenditure();
+      const firebaseCalorieExpenditureIds = new Set(firebaseCalorieExpenditure.map(ce => ce.id));
+      const calorieExpenditureToDelete = localCalorieExpenditure.filter(ce => !firebaseCalorieExpenditureIds.has(ce.id));
+      
+      if (calorieExpenditureToDelete.length > 0) {
+        console.log(`🗑️ Detectados ${calorieExpenditureToDelete.length} calorie expenditure deletados no Firebase`);
+        for (const calorieExpenditure of calorieExpenditureToDelete) {
+          try {
+            await database.deleteCalorieExpenditure(calorieExpenditure.id);
+            console.log(`🗑️ Calorie expenditure deletado localmente: ${calorieExpenditure.id}`);
+          } catch (error) {
+            console.warn(`⚠️ Erro ao deletar calorie expenditure ${calorieExpenditure.id}:`, error);
+          }
+        }
+        console.log(`✅ ${calorieExpenditureToDelete.length} calorie expenditure deletados localmente`);
+      }
+      
       // 4. Atualizar estado da aplicação com dados do Firebase
       const updatedFoods = await database.getAllFoods();
       const updatedEntries = await database.getAllEntries();
       const updatedUsers = await database.getAllUsers();
+      const updatedCalorieExpenditure = await database.getAllCalorieExpenditure();
       
       // Atualizar estado da aplicação
-      useAppStore.setState({ foods: updatedFoods, entries: updatedEntries, users: updatedUsers });
+      useAppStore.setState({ foods: updatedFoods, entries: updatedEntries, users: updatedUsers, calorieExpenditure: updatedCalorieExpenditure });
       
       console.log('✅ Sincronização unidirecional concluída (FIREBASE → LOCAL)');
       setSyncStatus('success');
