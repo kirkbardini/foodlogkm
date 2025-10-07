@@ -62,9 +62,9 @@ export const CompactNutritionCard: React.FC<CompactNutritionCardProps> = ({
     switch (macroType.toLowerCase()) {
       case 'proteína':
       case 'proteínas':
-        if (value <= max * 1.05) return 'target'; // 🟢 Meta (até 105%)
-        if (value <= max * 1.10) return 'above';   // 🟡 Acima (105% - 110%)
-        return 'excess'; // 🔴 Excesso (acima de 110%)
+        if (value <= max * 1.10) return 'target'; // 🟢 Meta (até 110%)
+        if (value <= max * 1.20) return 'above';   // 🟡 Acima (110% - 120%)
+        return 'excess'; // 🔴 Excesso (acima de 120%)
         
       case 'carboidrato':
       case 'carboidratos':

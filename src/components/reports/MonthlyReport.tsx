@@ -128,18 +128,18 @@ export const MonthlyReport: React.FC<MonthlyReportProps> = ({ monthStart, onMont
       // Cor dinâmica baseada na performance
       consumedColor: monthTotals.protein_g < (minimumRequirements.protein_g * activeDaysCount)
         ? '#EF4444' // Vermelho se abaixo do mínimo
-        : monthTotals.protein_g <= monthlyGoals.protein_g * 1.05 
-          ? '#10B981' // Verde se entre mínimo e 105% da meta
-          : monthTotals.protein_g <= monthlyGoals.protein_g * 1.10
-            ? '#F59E0B' // Amarelo se entre 105% e 110% da meta
-            : '#EF4444', // Vermelho se acima de 110% da meta
+        : monthTotals.protein_g <= monthlyGoals.protein_g * 1.10 
+          ? '#10B981' // Verde se entre mínimo e 110% da meta
+          : monthTotals.protein_g <= monthlyGoals.protein_g * 1.20
+            ? '#F59E0B' // Amarelo se entre 110% e 120% da meta
+            : '#EF4444', // Vermelho se acima de 120% da meta
       // Label dinâmico para o topo da barra
       statusLabel: monthTotals.protein_g < (minimumRequirements.protein_g * activeDaysCount)
         ? '🔴 Abaixo' // Vermelho se abaixo do mínimo
-        : monthTotals.protein_g <= monthlyGoals.protein_g * 1.05 
-          ? '🟢 Meta' // Verde se entre mínimo e 105% da meta
-          : monthTotals.protein_g <= monthlyGoals.protein_g * 1.10
-            ? '🟡 Acima' // Amarelo se entre 105% e 110% da meta
+        : monthTotals.protein_g <= monthlyGoals.protein_g * 1.10 
+          ? '🟢 Meta' // Verde se entre mínimo e 110% da meta
+          : monthTotals.protein_g <= monthlyGoals.protein_g * 1.20
+            ? '🟡 Acima' // Amarelo se entre 110% e 120% da meta
             : '🔴 Excesso' // Vermelho se acima de 110% da meta
     },
     {
