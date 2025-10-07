@@ -182,18 +182,18 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
       // Cor dinâmica baseada na performance
       consumedColor: weekTotals.fat_g < (minimumRequirements.fat_g * activeDaysCount)
         ? '#EF4444' // Vermelho se abaixo do mínimo
-        : weekTotals.fat_g <= weeklyGoals.fat_g * 1.15 
-          ? '#10B981' // Verde se entre mínimo e 115% da meta
+        : weekTotals.fat_g <= weeklyGoals.fat_g * 1.20 
+          ? '#10B981' // Verde se entre mínimo e 120% da meta
           : weekTotals.fat_g <= weeklyGoals.fat_g * 1.40
-            ? '#F59E0B' // Amarelo se entre 115% e 140% da meta
+            ? '#F59E0B' // Amarelo se entre 120% e 140% da meta
             : '#EF4444', // Vermelho se acima de 140% da meta
       // Label dinâmico para o topo da barra
       statusLabel: weekTotals.fat_g < (minimumRequirements.fat_g * activeDaysCount)
         ? '🔴 Abaixo' // Vermelho se abaixo do mínimo
-        : weekTotals.fat_g <= weeklyGoals.fat_g * 1.15   
-          ? '🟢 Meta' // Verde se entre mínimo e 115% da meta
+        : weekTotals.fat_g <= weeklyGoals.fat_g * 1.20   
+          ? '🟢 Meta' // Verde se entre mínimo e 120% da meta
           : weekTotals.fat_g <= weeklyGoals.fat_g * 1.40
-            ? '🟡 Acima' // Amarelo se entre 115% e 140% da meta
+            ? '🟡 Acima' // Amarelo se entre 120% e 140% da meta
             : '🔴 Excesso' // Vermelho se acima de 140% da meta
     }
   ];

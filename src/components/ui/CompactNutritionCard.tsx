@@ -74,8 +74,8 @@ export const CompactNutritionCard: React.FC<CompactNutritionCardProps> = ({
         
       case 'gordura':
       case 'gorduras':
-        if (value <= max * 1.15) return 'target'; // 🟢 Meta (até 115%)
-        if (value <= max * 1.40) return 'above';   // 🟡 Acima (115% - 140%)
+        if (value <= max * 1.20) return 'target'; // 🟢 Meta (até 120%)
+        if (value <= max * 1.40) return 'above';   // 🟡 Acima (120% - 140%)
         return 'excess'; // 🔴 Excesso (acima de 140%)
         
       case 'caloria':
