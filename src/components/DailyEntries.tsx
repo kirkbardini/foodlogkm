@@ -4,6 +4,7 @@ import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { Entry, MealType } from '../types';
 import { formatNumber } from '../lib/calculations';
+import { CopyMealModal } from './CopyMealModal';
 
 interface DailyEntriesProps {
   onEdit: (entry: Entry) => void;
@@ -34,6 +35,11 @@ export const DailyEntries: React.FC<DailyEntriesProps> = ({
 }) => {
   const { currentUser, selectedDate, foods, getEntriesForDate } = useAppStore();
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [copyMealData, setCopyMealData] = useState<{
+    date: string;
+    mealType: MealType;
+    entries: Entry[];
+  } | null>(null);
 
   const entries = getEntriesForDate(currentUser, selectedDate);
   
@@ -66,6 +72,14 @@ export const DailyEntries: React.FC<DailyEntriesProps> = ({
     } else {
       return `${formatNumber(entry.qty)} ${entry.unit}`;
     }
+  };
+
+  const handleCopyMeal = (mealType: MealType, mealEntries: Entry[]) => {
+    setCopyMealData({
+      date: selectedDate,
+      mealType,
+      entries: mealEntries
+    });
   };
 
   // Calcular totais por refeição
@@ -180,14 +194,27 @@ export const DailyEntries: React.FC<DailyEntriesProps> = ({
           <div key={mealType} className="space-y-3">
             <div className="mb-3 p-3 bg-gray-50 rounded-lg">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div className="flex items-center space-x-2">
-                  <span className="text-xl">{mealTypeIcons[mealType]}</span>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {mealTypeLabels[mealType]}
-                  </h3>
-                  <span className="text-sm text-gray-500">
-                    ({mealEntries.length} {mealEntries.length === 1 ? 'item' : 'itens'})
-                  </span>
+                <div className="flex items-center justify-between w-full sm:w-auto">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xl">{mealTypeIcons[mealType]}</span>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {mealTypeLabels[mealType]}
+                    </h3>
+                    <span className="text-sm text-gray-500">
+                      ({mealEntries.length} {mealEntries.length === 1 ? 'item' : 'itens'})
+                    </span>
+                  </div>
+                  <div className="ml-3">
+                    <Button
+                      onClick={() => handleCopyMeal(mealType, mealEntries)}
+                      variant="secondary"
+                      size="sm"
+                      className="text-xs px-2 py-1 min-w-0"
+                      title="Copiar refeição"
+                    >
+                      📋
+                    </Button>
+                  </div>
                 </div>
                 {mealTotal && mealTotal.count > 0 && (
                   <div className="text-center">
@@ -292,6 +319,13 @@ export const DailyEntries: React.FC<DailyEntriesProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal de Copiar Refeição */}
+      <CopyMealModal
+        isOpen={copyMealData !== null}
+        onClose={() => setCopyMealData(null)}
+        originData={copyMealData}
+      />
     </div>
   );
 };
