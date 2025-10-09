@@ -159,6 +159,9 @@ const defaultSettings: AppSettings = {
 const syncToFirebase = async (operation: () => Promise<void>, itemType: string) => {
   try {
     await operation();
+    
+    // Atualizar lastGlobalUpdate após operação bem-sucedida
+    await firebaseSyncService.updateGlobalSyncState();
   } catch (error) {
     console.error(`❌ Falha na sincronização de ${itemType}:`, error);
     // Não falha a operação local se o Firebase falhar
@@ -426,6 +429,7 @@ export const useAppStore = create<AppState>()(
           water_ml: entry.water_ml || 0,
           updatedAt: Date.now()
         };
+        
         await database.updateEntry(updatedEntry);
         set(state => ({
           entries: state.entries.map(e => e.id === entry.id ? updatedEntry : e)

@@ -181,6 +181,13 @@ class Database {
 
   async updateUser(user: UserPrefs): Promise<void> {
     const db = this.ensureDB();
+    
+    // Validar se o usuário tem um ID válido
+    if (!user.id || typeof user.id !== 'string' || user.id.trim() === '') {
+      console.warn('⚠️ Usuário com ID inválido ignorado:', user);
+      return;
+    }
+    
     await db.put('users', user);
   }
 

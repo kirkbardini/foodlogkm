@@ -8,7 +8,8 @@ import {
   orderBy,
   deleteDoc,
   where,
-  onSnapshot
+  onSnapshot,
+  getDoc
 } from 'firebase/firestore';
 import { 
   signInWithPopup, 
@@ -92,6 +93,8 @@ class FirebaseSyncService {
     }
 
     await setDoc(doc(db, 'foods', food.id), foodData);
+    
+    // updateGlobalSyncState será chamado pelo syncToFirebase
   }
 
   async saveFoods(foods: FoodItem[]): Promise<void> {
@@ -137,6 +140,8 @@ class FirebaseSyncService {
     }
     
     console.log(`✅ Alimentos sincronizados: ${newCount} novos, ${updateCount} atualizados, ${skipCount} duplicados ignorados`);
+    
+    // updateGlobalSyncState será chamado pelo syncToFirebase
   }
 
   // Contar alimentos no Firebase (query rápida)
@@ -262,6 +267,8 @@ class FirebaseSyncService {
   async deleteFood(id: string): Promise<void> {
     await deleteDoc(doc(db, 'foods', id));
     // Alimento deletado (FIREBASE)
+    
+    // updateGlobalSyncState será chamado pelo syncToFirebase
   }
 
   // Entries
@@ -290,6 +297,7 @@ class FirebaseSyncService {
     }
 
     await setDoc(doc(db, 'entries', entry.id), entryData);
+    // updateGlobalSyncState será chamado pelo syncToFirebase
   }
 
   async saveEntries(entries: Entry[]): Promise<void> {
@@ -327,6 +335,8 @@ class FirebaseSyncService {
     }
     
     console.log(`✅ Entradas sincronizadas: ${newCount} novas, ${updateCount} atualizadas, ${skipCount} inválidas ignoradas`);
+    
+    // updateGlobalSyncState será chamado pelo syncToFirebase
   }
 
   async loadEntries(userId: string): Promise<Entry[]> {
@@ -384,6 +394,8 @@ class FirebaseSyncService {
   async deleteEntry(id: string): Promise<void> {
     await deleteDoc(doc(db, 'entries', id));
     console.log(`🗑️ Entrada deletada: ${id}`);
+    
+    // updateGlobalSyncState será chamado pelo syncToFirebase
   }
 
   // Calorie Expenditure
@@ -406,6 +418,8 @@ class FirebaseSyncService {
     }
 
     await setDoc(doc(db, 'calorieExpenditure', calorieExpenditure.id), calorieExpenditureData);
+    
+    // updateGlobalSyncState será chamado pelo syncToFirebase
   }
 
   async loadCalorieExpenditure(): Promise<CalorieExpenditure[]> {
@@ -459,6 +473,8 @@ class FirebaseSyncService {
   async deleteCalorieExpenditure(id: string): Promise<void> {
     await deleteDoc(doc(db, 'calorieExpenditure', id));
     console.log(`🗑️ Calorie expenditure deletado: ${id}`);
+    
+    // updateGlobalSyncState será chamado pelo syncToFirebase
   }
 
   // Users
@@ -505,6 +521,8 @@ class FirebaseSyncService {
     }
     
     console.log(`✅ Usuários sincronizados: ${newCount} novos, ${updateCount} atualizados, ${skipCount} inválidos ignorados`);
+    
+    // updateGlobalSyncState será chamado pelo syncToFirebase
   }
 
   async loadUsers(): Promise<UserPrefs[]> {
@@ -598,6 +616,99 @@ class FirebaseSyncService {
     const user = this.getCurrentUser();
     if (!user?.email) return 'kirk';
     return this.getUserIdFromEmail(user.email);
+  }
+
+  // ===== NOVA ESTRUTURA DE SINCRONIZAÇÃO OTIMIZADA =====
+  
+  // Atualizar lastGlobalUpdate na coleção system
+  async updateGlobalSyncState(): Promise<void> {
+    try {
+      const syncStateRef = doc(db, 'system', 'syncState');
+      await setDoc(syncStateRef, {
+        lastGlobalUpdate: serverTimestamp(),
+        type: 'global_sync_state',
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      
+      console.log('🔄 lastGlobalUpdate atualizado no system/syncState');
+    } catch (error) {
+      console.warn('⚠️ Erro ao atualizar lastGlobalUpdate:', error);
+      console.log('🔄 Continuando sem atualização do syncState');
+    }
+  }
+
+  // Inicializar syncState na coleção system se não existir
+  async initializeGlobalSyncState(): Promise<void> {
+    try {
+      const syncStateRef = doc(db, 'system', 'syncState');
+      const syncStateDoc = await getDoc(syncStateRef);
+      
+      if (!syncStateDoc.exists()) {
+        console.log('🏗️ Criando system/syncState...');
+        await setDoc(syncStateRef, {
+          lastGlobalUpdate: serverTimestamp(),
+          type: 'global_sync_state',
+          version: '1.0',
+          description: 'Global sync state for optimized Firebase reads',
+          createdAt: serverTimestamp()
+        });
+        console.log('✅ system/syncState criado com sucesso');
+      } else {
+        console.log('✅ system/syncState já existe');
+      }
+    } catch (error) {
+      console.warn('⚠️ Erro ao inicializar system/syncState:', error);
+      console.log('🔄 Continuando sem otimização - usando sincronização completa');
+    }
+  }
+
+  // Verificar se precisa sincronizar baseado no system/syncState
+  async shouldSyncData(userId: string): Promise<{ needsSync: boolean; reason: string }> {
+    try {
+      // 1. Verificar lastGlobalUpdate do system/syncState
+      const syncStateRef = doc(db, 'system', 'syncState');
+      const syncStateDoc = await getDoc(syncStateRef);
+      
+      if (!syncStateDoc.exists()) {
+        console.log('📊 system/syncState não existe - primeira sincronização');
+        return { needsSync: true, reason: 'system/syncState não existe' };
+      }
+      
+      const lastGlobalUpdate = syncStateDoc.data()?.lastGlobalUpdate?.toMillis() || 0;
+      console.log('🌍 lastGlobalUpdate:', new Date(lastGlobalUpdate).toLocaleString());
+      
+      // 2. Verificar lastSync do localStorage
+      const localLastSync = localStorage.getItem(`lastSync_${userId}`);
+      
+      if (!localLastSync) {
+        console.log('📱 Primeira vez neste navegador - sincronização necessária');
+        return { needsSync: true, reason: 'Primeira vez neste navegador' };
+      }
+      
+      const userLastSync = parseInt(localLastSync);
+      console.log('👤 userLastSync:', new Date(userLastSync).toLocaleString());
+      
+      const needsSync = userLastSync < lastGlobalUpdate;
+      const reason = needsSync 
+        ? `Dados desatualizados: ${new Date(userLastSync).toLocaleString()} < ${new Date(lastGlobalUpdate).toLocaleString()}`
+        : 'Dados sincronizados';
+      
+      console.log(`🔍 Verificação de sincronização: ${needsSync ? 'NECESSÁRIA' : 'NÃO NECESSÁRIA'} - ${reason}`);
+      
+      return { needsSync, reason };
+      
+    } catch (error) {
+      console.warn('⚠️ Erro ao verificar sincronização:', error);
+      console.log('🔄 Fallback: usando sincronização completa por segurança');
+      return { needsSync: true, reason: 'Erro na verificação - sincronização completa' };
+    }
+  }
+
+  // Atualizar lastSync do usuário no localStorage
+  updateUserLastSync(userId: string): void {
+    const now = Date.now();
+    localStorage.setItem(`lastSync_${userId}`, now.toString());
+    console.log(`✅ lastSync atualizado para usuário ${userId}: ${new Date(now).toLocaleString()}`);
   }
 }
 
