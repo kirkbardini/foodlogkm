@@ -117,7 +117,7 @@ export const FoodEntry: React.FC<FoodEntryProps> = ({
     if (editingEntry && onUpdate) {
       const updatedEntry = { ...editingEntry, ...entryData };
       await updateEntry(updatedEntry);
-      onUpdate(updatedEntry);
+      // onUpdate será chamado automaticamente pelo updateEntry
     } else {
       await addEntry(entryData);
     }

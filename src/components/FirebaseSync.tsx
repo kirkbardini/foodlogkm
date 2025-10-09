@@ -60,17 +60,15 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
         // 2. Verificar se precisa sincronizar
         const { needsSync, reason } = await firebaseSyncService.shouldSyncData(userId);
         
-        if (needsSync) {
-          console.log(`🔄 Sincronização necessária: ${reason}`);
-          await loadDataFromFirebase();
-          
-          // Atualizar lastSync após sincronização bem-sucedida
-          firebaseSyncService.updateUserLastSync(userId);
-        } else {
-          console.log(`✅ Dados já sincronizados: ${reason}`);
-          // Carregar dados locais mesmo sem sincronização
-          await loadInitialData();
-        }
+          if (needsSync) {
+            console.log(`🔄 Sincronização necessária: ${reason}`);
+            await loadDataFromFirebase();
+            // updateUserLastSync será chamado pelo loadDataFromFirebase
+          } else {
+            console.log(`✅ Dados já sincronizados: ${reason}`);
+            // Carregar dados locais mesmo sem sincronização
+            await loadInitialData();
+          }
       } catch (error) {
         console.error('❌ Erro na verificação/sincronização:', error);
         setSyncStatus('error');
@@ -89,39 +87,7 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
       if (success) {
         setAuthenticated(true);
         console.log('✅ Login realizado com sucesso');
-        
-        // Mostrar loading durante verificação
-        onLoadingChange?.(true);
-        
-        try {
-          // NOVA LÓGICA OTIMIZADA: Verificar se precisa sincronizar
-          const userId = firebaseSyncService.getCurrentUserId();
-          
-          // 1. Inicializar meta/syncState se necessário
-          await firebaseSyncService.initializeGlobalSyncState();
-          
-          // 2. Verificar se precisa sincronizar
-          const { needsSync, reason } = await firebaseSyncService.shouldSyncData(userId);
-          
-          if (needsSync) {
-            console.log(`🔄 Sincronização necessária: ${reason}`);
-            await loadDataFromFirebase();
-            
-            // Atualizar lastSync após sincronização bem-sucedida
-            firebaseSyncService.updateUserLastSync(userId);
-          } else {
-            console.log(`✅ Dados já sincronizados: ${reason}`);
-            // Carregar dados locais mesmo sem sincronização
-            await loadInitialData();
-          }
-          
-          console.log('✅ Verificação/sincronização concluída com sucesso');
-        } catch (error) {
-          console.error('❌ Erro na verificação/sincronização:', error);
-          setSyncStatus('error');
-        } finally {
-          onLoadingChange?.(false);
-        }
+        // checkAuthentication será chamado automaticamente pelo onAuthStateChanged
       } else {
         setSyncStatus('error');
       }
