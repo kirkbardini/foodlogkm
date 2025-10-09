@@ -391,6 +391,36 @@ class FirebaseSyncService {
     });
   }
 
+  async loadRecentEntries(cutoffDate: string): Promise<Entry[]> {
+    const entriesQuery = query(
+      collection(db, 'entries'), 
+      where('dateISO', '>=', cutoffDate),
+      orderBy('dateISO', 'desc')
+    );
+    const snapshot = await getDocs(entriesQuery);
+    
+    console.log(`📝 Carregando entradas recentes desde ${cutoffDate}...`);
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: data.id,
+        userId: data.userId,
+        dateISO: data.dateISO,
+        foodId: data.foodId,
+        qty: data.qty,
+        unit: data.unit,
+        mealType: data.mealType,
+        note: data.note,
+        protein_g: data.protein_g,
+        carbs_g: data.carbs_g,
+        fat_g: data.fat_g,
+        kcal: data.kcal,
+        water_ml: data.water_ml
+      } as Entry;
+    });
+  }
+
   async deleteEntry(id: string): Promise<void> {
     await deleteDoc(doc(db, 'entries', id));
     console.log(`🗑️ Entrada deletada: ${id}`);
@@ -425,6 +455,34 @@ class FirebaseSyncService {
   async loadCalorieExpenditure(): Promise<CalorieExpenditure[]> {
     const q = query(collection(db, 'calorieExpenditure'), orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(q);
+    
+    const calorieExpenditure: CalorieExpenditure[] = [];
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      calorieExpenditure.push({
+        id: data.id,
+        userId: data.userId,
+        dateISO: data.dateISO,
+        calories_burned: data.calories_burned,
+        source: data.source,
+        note: data.note,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt
+      });
+    });
+    
+    return calorieExpenditure;
+  }
+
+  async loadRecentCalorieExpenditure(cutoffDate: string): Promise<CalorieExpenditure[]> {
+    const q = query(
+      collection(db, 'calorieExpenditure'), 
+      where('dateISO', '>=', cutoffDate),
+      orderBy('dateISO', 'desc')
+    );
+    const querySnapshot = await getDocs(q);
+    
+    console.log(`🔥 Carregando calorie expenditure recente desde ${cutoffDate}...`);
     
     const calorieExpenditure: CalorieExpenditure[] = [];
     querySnapshot.forEach((doc) => {
@@ -606,6 +664,24 @@ class FirebaseSyncService {
     return { entries, foods, users, calorieExpenditure };
   }
 
+  // Load recent data (optimized for frequent usage)
+  async loadRecentData(days: number = 5): Promise<{ entries: Entry[]; foods: FoodItem[]; users: UserPrefs[]; calorieExpenditure: CalorieExpenditure[] }> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    const cutoffDateISO = cutoffDate.toISOString().split('T')[0];
+    
+    console.log(`🔄 Carregando dados recentes (últimos ${days} dias desde ${cutoffDateISO})...`);
+    
+    const [entries, foods, users, calorieExpenditure] = await Promise.all([
+      this.loadRecentEntries(cutoffDateISO),
+      this.loadFoods(),  // Foods sempre completos
+      this.loadUsers(),  // Users sempre completos
+      this.loadRecentCalorieExpenditure(cutoffDateISO)
+    ]);
+
+    return { entries, foods, users, calorieExpenditure };
+  }
+
   getUserIdFromEmail(email: string): string {
     if (email === 'bardini.kirk@gmail.com') return 'kirk';
     if (email === 'emanuelle.joaquim@gmail.com') return 'manu';
@@ -644,7 +720,6 @@ class FirebaseSyncService {
       const syncStateDoc = await getDoc(syncStateRef);
       
       if (!syncStateDoc.exists()) {
-        console.log('🏗️ Criando system/syncState...');
         await setDoc(syncStateRef, {
           lastGlobalUpdate: serverTimestamp(),
           type: 'global_sync_state',
@@ -652,9 +727,6 @@ class FirebaseSyncService {
           description: 'Global sync state for optimized Firebase reads',
           createdAt: serverTimestamp()
         });
-        console.log('✅ system/syncState criado com sucesso');
-      } else {
-        console.log('✅ system/syncState já existe');
       }
     } catch (error) {
       console.warn('⚠️ Erro ao inicializar system/syncState:', error);
@@ -693,7 +765,6 @@ class FirebaseSyncService {
         ? `Dados desatualizados: ${new Date(userLastSync).toLocaleString()} < ${new Date(lastGlobalUpdate).toLocaleString()}`
         : 'Dados sincronizados';
       
-      console.log(`🔍 Verificação de sincronização: ${needsSync ? 'NECESSÁRIA' : 'NÃO NECESSÁRIA'} - ${reason}`);
       
       return { needsSync, reason };
       

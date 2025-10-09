@@ -51,7 +51,7 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
       onLoadingChange?.(true);
       
       try {
-        // NOVA LÓGICA OTIMIZADA: Verificar se precisa sincronizar
+        // ESTRATÉGIA HÍBRIDA: Verificar se precisa sincronizar
         const userId = firebaseSyncService.getCurrentUserId();
         
         // 1. Inicializar meta/syncState se necessário
@@ -60,15 +60,26 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
         // 2. Verificar se precisa sincronizar
         const { needsSync, reason } = await firebaseSyncService.shouldSyncData(userId);
         
-          if (needsSync) {
-            console.log(`🔄 Sincronização necessária: ${reason}`);
-            await loadDataFromFirebase();
-            // updateUserLastSync será chamado pelo loadDataFromFirebase
+        if (needsSync) {
+          console.log(`🔄 Sincronização necessária: ${reason}`);
+          
+          // ESTRATÉGIA HÍBRIDA: Verificar se deve usar query limitada
+          const lastSync = localStorage.getItem(`lastSync_${userId}`);
+          const daysSinceSync = lastSync ? (Date.now() - parseInt(lastSync)) / (1000 * 60 * 60 * 24) : 999;
+          
+          if (daysSinceSync <= 5) {
+            console.log(`🚀 Estratégia rápida: Carregando dados dos últimos 5 dias (${daysSinceSync.toFixed(1)} dias desde última sync)`);
+            await loadRecentDataFromFirebase();
           } else {
-            console.log(`✅ Dados já sincronizados: ${reason}`);
-            // Carregar dados locais mesmo sem sincronização
-            await loadInitialData();
+            console.log(`🔄 Estratégia completa: Carregando todos os dados (${daysSinceSync.toFixed(1)} dias desde última sync)`);
+            await loadDataFromFirebase();
           }
+          // updateUserLastSync será chamado pelo loadDataFromFirebase ou loadRecentDataFromFirebase
+        } else {
+          console.log(`✅ Dados já sincronizados: ${reason}`);
+          // Carregar dados locais mesmo sem sincronização
+          await loadInitialData();
+        }
       } catch (error) {
         console.error('❌ Erro na verificação/sincronização:', error);
         setSyncStatus('error');
@@ -253,6 +264,104 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
       
     } catch (error) {
       console.error('❌ Erro ao carregar dados do Firebase:', error);
+      setSyncStatus('error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadRecentDataFromFirebase = async () => {
+    setIsLoading(true);
+    setSyncStatus('syncing');
+    
+    try {
+      // ESTRATÉGIA HÍBRIDA: Carregar dados recentes (últimos 5 dias)
+      // Carregar dados recentes do Firebase
+      const { entries: firebaseEntries, foods: firebaseFoods, users: firebaseUsers, calorieExpenditure: firebaseCalorieExpenditure } = await firebaseSyncService.loadRecentData(5);
+      
+      console.log(`📊 Dados recentes do Firebase: ${firebaseEntries.length} entradas, ${firebaseFoods.length} alimentos, ${firebaseUsers.length} usuários, ${firebaseCalorieExpenditure.length} calorie expenditure`);
+      
+      // Atualizar dados locais com dados recentes do Firebase
+      console.log('🔄 Atualizando dados locais com dados recentes do Firebase...');
+      
+      // 1. Atualizar usuários (metas) do Firebase (sempre completos)
+      for (const user of firebaseUsers) {
+        await database.updateUser(user);
+      }
+      console.log(`👥 ${firebaseUsers.length} usuários atualizados do Firebase`);
+      
+      // 2. Atualizar alimentos do Firebase (sempre completos)
+      for (const firebaseFood of firebaseFoods) {
+        try {
+          const existingFood = await database.getFood(firebaseFood.id);
+          
+          if (existingFood) {
+            // Alimento existe - atualizar com dados do Firebase
+            await database.updateFood(firebaseFood);
+          } else {
+            // Alimento não existe - adicionar do Firebase
+            await database.addFood(firebaseFood);
+          }
+        } catch (error) {
+          console.warn(`⚠️ Erro ao sincronizar alimento ${firebaseFood.name}:`, error);
+        }
+      }
+      console.log(`🍎 ${firebaseFoods.length} alimentos sincronizados do Firebase`);
+      
+      // 3. Atualizar entradas recentes do Firebase
+      for (const firebaseEntry of firebaseEntries) {
+        try {
+          const existingEntry = await database.getEntry(firebaseEntry.id);
+          
+          if (existingEntry) {
+            // Entrada existe - atualizar com dados do Firebase
+            await database.updateEntry(firebaseEntry);
+          } else {
+            // Entrada não existe - adicionar do Firebase
+            await database.addEntry(firebaseEntry);
+          }
+        } catch (error) {
+          console.warn(`⚠️ Erro ao sincronizar entrada ${firebaseEntry.id}:`, error);
+        }
+      }
+      console.log(`📝 ${firebaseEntries.length} entradas recentes sincronizadas do Firebase`);
+      
+      // 4. Atualizar calorie expenditure recentes do Firebase
+      for (const calorieExpenditure of firebaseCalorieExpenditure) {
+        try {
+          const existingCalorieExpenditure = await database.getCalorieExpenditureForDate(calorieExpenditure.userId, calorieExpenditure.dateISO);
+          
+          if (existingCalorieExpenditure.length > 0) {
+            // Calorie expenditure existe - atualizar com dados do Firebase
+            await database.updateCalorieExpenditure(calorieExpenditure);
+          } else {
+            // Calorie expenditure não existe - adicionar do Firebase
+            await database.addCalorieExpenditure(calorieExpenditure);
+          }
+        } catch (error) {
+          console.warn(`⚠️ Erro ao sincronizar calorie expenditure ${calorieExpenditure.id}:`, error);
+        }
+      }
+      console.log(`🔥 ${firebaseCalorieExpenditure.length} calorie expenditure recentes sincronizados do Firebase`);
+      
+      // 5. Atualizar estado da aplicação com dados do Firebase
+      const updatedFoods = await database.getAllFoods();
+      const updatedEntries = await database.getAllEntries();
+      const updatedUsers = await database.getAllUsers();
+      const updatedCalorieExpenditure = await database.getAllCalorieExpenditure();
+      
+      // Atualizar estado da aplicação
+      useAppStore.setState({ foods: updatedFoods, entries: updatedEntries, users: updatedUsers, calorieExpenditure: updatedCalorieExpenditure });
+      
+      console.log('✅ Sincronização rápida concluída (FIREBASE → LOCAL) - Dados dos últimos 5 dias');
+      setSyncStatus('success');
+      
+      // Atualizar lastSync após sincronização bem-sucedida
+      const userId = firebaseSyncService.getCurrentUserId();
+      firebaseSyncService.updateUserLastSync(userId);
+      
+    } catch (error) {
+      console.error('❌ Erro ao carregar dados recentes do Firebase:', error);
       setSyncStatus('error');
     } finally {
       setIsLoading(false);
