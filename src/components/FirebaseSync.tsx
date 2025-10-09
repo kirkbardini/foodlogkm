@@ -23,6 +23,7 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
   } = useAppStore();
   const [isLoading, setIsLoading] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
   // Verificar autenticação - REABILITADO para usuários
   useEffect(() => {
@@ -258,6 +259,13 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
       console.log('✅ Sincronização unidirecional concluída (FIREBASE → LOCAL)');
       setSyncStatus('success');
       
+      // Mostrar mensagem de sucesso e fechar automaticamente
+      setShowSuccessMessage(true);
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+        onClose();
+      }, 3000);
+      
       // Atualizar lastSync após sincronização bem-sucedida
       const userId = firebaseSyncService.getCurrentUserId();
       firebaseSyncService.updateUserLastSync(userId);
@@ -356,6 +364,13 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
       console.log('✅ Sincronização rápida concluída (FIREBASE → LOCAL) - Dados dos últimos 5 dias');
       setSyncStatus('success');
       
+      // Mostrar mensagem de sucesso e fechar automaticamente
+      setShowSuccessMessage(true);
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+        onClose();
+      }, 3000);
+      
       // Atualizar lastSync após sincronização bem-sucedida
       const userId = firebaseSyncService.getCurrentUserId();
       firebaseSyncService.updateUserLastSync(userId);
@@ -368,31 +383,6 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
     }
   };
 
-  const saveDataToFirebase = async () => {
-    setIsLoading(true);
-    setSyncStatus('syncing');
-    
-    try {
-      // Carregar dados locais
-      await loadInitialData();
-      
-      // Sincronizar com Firebase
-      const { foods, entries, users } = useAppStore.getState();
-      
-      console.log('🔄 Enviando dados para Firebase...');
-      await firebaseSyncService.saveFoods(foods);
-      await firebaseSyncService.saveEntries(entries);
-      await firebaseSyncService.saveUsers(users);
-      
-      console.log('✅ Dados enviados para Firebase com sucesso');
-      setSyncStatus('success');
-    } catch (error) {
-      console.error('❌ Erro ao enviar dados para Firebase:', error);
-      setSyncStatus('error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const getStatusColor = () => {
     switch (syncStatus) {
@@ -420,6 +410,15 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
         <h2 className="text-xl font-semibold mb-4">Gerenciar Sincronização</h2>
         
         <div className="space-y-4">
+          {showSuccessMessage && (
+            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg text-center">
+              <div className="flex items-center justify-center">
+                <span className="text-lg mr-2">✅</span>
+                <span className="font-medium">Dados atualizados com sucesso!</span>
+              </div>
+            </div>
+          )}
+          
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-600">Status:</span>
             <span className={`text-sm font-medium ${getStatusColor()}`}>
@@ -440,18 +439,17 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
               <Button
                 onClick={loadDataFromFirebase}
                 disabled={isLoading}
-                className="w-full"
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white border-orange-500 hover:border-orange-600"
               >
-                {isLoading ? 'Baixando...' : 'Baixar Dados'}
+                {isLoading ? '⏳ Baixando...' : '📥 Baixar todos os dados'}
               </Button>
               
               <Button
-                onClick={saveDataToFirebase}
+                onClick={loadRecentDataFromFirebase}
                 disabled={isLoading}
-                variant="secondary"
-                className="w-full"
+                className="w-full bg-green-500 hover:bg-green-600 text-white border-green-500 hover:border-green-600"
               >
-                {isLoading ? 'Enviando...' : 'Enviar Dados'}
+                {isLoading ? '⏳ Baixando...' : '⚡ Baixar dados recentes'}
               </Button>
               
               <Button
@@ -459,7 +457,7 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
                 variant="secondary"
                 className="w-full"
               >
-                Sair
+                🚪 Sair
               </Button>
             </div>
           )}
