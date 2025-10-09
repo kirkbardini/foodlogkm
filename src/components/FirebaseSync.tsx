@@ -68,8 +68,8 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
           const lastSync = localStorage.getItem(`lastSync_${userId}`);
           const daysSinceSync = lastSync ? (Date.now() - parseInt(lastSync)) / (1000 * 60 * 60 * 24) : 999;
           
-          if (daysSinceSync <= 5) {
-            console.log(`🚀 Estratégia rápida: Carregando dados dos últimos 5 dias (${daysSinceSync.toFixed(1)} dias desde última sync)`);
+          if (daysSinceSync <= 3) {
+            console.log(`🚀 Estratégia rápida: Carregando dados dos últimos 3 dias (${daysSinceSync.toFixed(1)} dias desde última sync)`);
             await loadRecentDataFromFirebase();
           } else {
             console.log(`🔄 Estratégia completa: Carregando todos os dados (${daysSinceSync.toFixed(1)} dias desde última sync)`);
@@ -283,9 +283,9 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
     setSyncStatus('syncing');
     
     try {
-      // ESTRATÉGIA HÍBRIDA: Carregar dados recentes (últimos 5 dias)
-      // Carregar dados recentes do Firebase
-      const { entries: firebaseEntries, foods: firebaseFoods, users: firebaseUsers, calorieExpenditure: firebaseCalorieExpenditure } = await firebaseSyncService.loadRecentData(5);
+            // ESTRATÉGIA HÍBRIDA: Carregar dados recentes (últimos 3 dias)
+            // Carregar dados recentes do Firebase
+            const { entries: firebaseEntries, foods: firebaseFoods, users: firebaseUsers, calorieExpenditure: firebaseCalorieExpenditure } = await firebaseSyncService.loadRecentData(3);
       
       console.log(`📊 Dados recentes do Firebase: ${firebaseEntries.length} entradas, ${firebaseFoods.length} alimentos, ${firebaseUsers.length} usuários, ${firebaseCalorieExpenditure.length} calorie expenditure`);
       
@@ -361,7 +361,7 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
       // Atualizar estado da aplicação
       useAppStore.setState({ foods: updatedFoods, entries: updatedEntries, users: updatedUsers, calorieExpenditure: updatedCalorieExpenditure });
       
-      console.log('✅ Sincronização rápida concluída (FIREBASE → LOCAL) - Dados dos últimos 5 dias');
+      console.log('✅ Sincronização rápida concluída (FIREBASE → LOCAL) - Dados dos últimos 3 dias');
       setSyncStatus('success');
       
       // Mostrar mensagem de sucesso e fechar automaticamente
@@ -449,7 +449,7 @@ export const FirebaseSync: React.FC<FirebaseSyncProps> = ({
                 disabled={isLoading}
                 className="w-full bg-green-500 hover:bg-green-600 text-white border-green-500 hover:border-green-600"
               >
-                {isLoading ? '⏳ Baixando...' : '⚡ Baixar dados recentes'}
+                {isLoading ? '⏳ Baixando...' : '⚡ Baixar dados recentes (3 dias)'}
               </Button>
               
               <Button
