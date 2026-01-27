@@ -111,19 +111,19 @@ export const DailyReport: React.FC<DailyReportProps> = ({ date, onDateChange }) 
       // Cor dinâmica baseada na performance
       consumedColor: dayTotals.protein_g < minimumRequirements.protein_g 
         ? '#EF4444' // Vermelho se abaixo do mínimo
-        : dayTotals.protein_g <= dailyGoal.protein_g * 1.10 
-          ? '#10B981' // Verde se entre mínimo e 110% da meta
-          : dayTotals.protein_g <= dailyGoal.protein_g * 1.20
-            ? '#F59E0B' // Amarelo se entre 110% e 120% da meta
-            : '#EF4444', // Vermelho se acima de 120% da meta
+        : dayTotals.protein_g <= dailyGoal.protein_g * 1.15 
+          ? '#10B981' // Verde se entre mínimo e 115% da meta
+          : dayTotals.protein_g <= dailyGoal.protein_g * 1.25
+            ? '#F59E0B' // Amarelo se entre 115% e 125% da meta
+            : '#EF4444', // Vermelho se acima de 125% da meta
       // Label dinâmico para o topo da barra
       statusLabel: dayTotals.protein_g < minimumRequirements.protein_g 
         ? '🔴 Abaixo' // Vermelho se abaixo do mínimo
-        : dayTotals.protein_g <= dailyGoal.protein_g * 1.10 
+        : dayTotals.protein_g <= dailyGoal.protein_g * 1.15 
           ? '🟢 Meta' // Verde se entre mínimo e 110% da meta
-          : dayTotals.protein_g <= dailyGoal.protein_g * 1.20
-            ? '🟡 Acima' // Amarelo se entre 110% e 120% da meta
-            : '🔴 Excesso' // Vermelho se acima de 110% da meta
+          : dayTotals.protein_g <= dailyGoal.protein_g * 1.25
+            ? '🟡 Acima' // Amarelo se entre 115% e 125% da meta
+            : '🔴 Excesso' // Vermelho se acima de 125% da meta
     },
     {
       macro: 'Carboidratos',
@@ -133,19 +133,19 @@ export const DailyReport: React.FC<DailyReportProps> = ({ date, onDateChange }) 
       // Cor dinâmica baseada na performance
       consumedColor: dayTotals.carbs_g < minimumRequirements.carbs_g 
         ? '#EF4444' // Vermelho se abaixo do mínimo
-        : dayTotals.carbs_g <= dailyGoal.carbs_g * 1.05 
-          ? '#10B981' // Verde se entre mínimo e 105% da meta
-          : dayTotals.carbs_g <= dailyGoal.carbs_g * 1.10
-            ? '#F59E0B' // Amarelo se entre 105% e 110% da meta
-            : '#EF4444', // Vermelho se acima de 110% da meta
+        : dayTotals.carbs_g <= dailyGoal.carbs_g * 1.10 
+          ? '#10B981' // Verde se entre mínimo e 110% da meta
+          : dayTotals.carbs_g <= dailyGoal.carbs_g * 1.15
+            ? '#F59E0B' // Amarelo se entre 110% e 115% da meta
+            : '#EF4444', // Vermelho se acima de 115% da meta
       // Label dinâmico para o topo da barra
       statusLabel: dayTotals.carbs_g < minimumRequirements.carbs_g 
         ? '🔴 Abaixo' // Vermelho se abaixo do mínimo
-        : dayTotals.carbs_g <= dailyGoal.carbs_g * 1.05 
+        : dayTotals.carbs_g <= dailyGoal.carbs_g * 1.10 
           ? '🟢 Meta' // Verde se entre mínimo e 105% da meta
-          : dayTotals.carbs_g <= dailyGoal.carbs_g * 1.10
-            ? '🟡 Acima' // Amarelo se entre 105% e 110% da meta
-            : '🔴 Excesso' // Vermelho se acima de 110% da meta
+          : dayTotals.carbs_g <= dailyGoal.carbs_g * 1.15
+            ? '🟡 Acima' // Amarelo se entre 110% e 115% da meta
+            : '🔴 Excesso' // Vermelho se acima de 115% da meta
     },
     {
       macro: 'Gorduras',

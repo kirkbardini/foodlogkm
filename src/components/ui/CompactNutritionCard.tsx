@@ -62,14 +62,14 @@ export const CompactNutritionCard: React.FC<CompactNutritionCardProps> = ({
     switch (macroType.toLowerCase()) {
       case 'proteína':
       case 'proteínas':
-        if (value <= max * 1.10) return 'target'; // 🟢 Meta (até 110%)
-        if (value <= max * 1.20) return 'above';   // 🟡 Acima (110% - 120%)
+        if (value <= max * 1.15) return 'target'; // 🟢 Meta (até 115%)
+        if (value <= max * 1.25) return 'above';   // 🟡 Acima (115% - 125%)
         return 'excess'; // 🔴 Excesso (acima de 120%)
         
       case 'carboidrato':
       case 'carboidratos':
-        if (value <= max * 1.05) return 'target'; // 🟢 Meta (até 105%)
-        if (value <= max * 1.10) return 'above';   // 🟡 Acima (105% - 110%)
+        if (value <= max * 1.10) return 'target'; // 🟢 Meta (até 110%)
+        if (value <= max * 1.15) return 'above';   // 🟡 Acima (110% - 115%)
         return 'excess'; // 🔴 Excesso (acima de 110%)
         
       case 'gordura':
@@ -80,8 +80,8 @@ export const CompactNutritionCard: React.FC<CompactNutritionCardProps> = ({
         
       case 'caloria':
       case 'calorias':
-        if (value <= max * 1.05) return 'target'; // 🟢 Meta (até 105%)
-        if (value <= max * 1.10) return 'above';   // 🟡 Acima (105% - 110%)
+        if (value <= max * 1.08) return 'target'; // 🟢 Meta (até 108%)
+        if (value <= max * 1.12) return 'above';   // 🟡 Acima (108% - 112%)
         return 'excess'; // 🔴 Excesso (acima de 110%)
         
       case 'água':
