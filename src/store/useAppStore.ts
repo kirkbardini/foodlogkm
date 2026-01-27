@@ -124,10 +124,10 @@ const defaultUsers: UserPrefs[] = [
       water_ml: 3000
     },
     minimumRequirements: {
-      protein_g: 125,
-      carbs_g: 160,
-      fat_g: 40,
-      kcal: 1500
+      protein_g: 135,
+      carbs_g: 190,
+      fat_g: 37,
+      kcal: 1750
     }
   },
   {
@@ -141,10 +141,10 @@ const defaultUsers: UserPrefs[] = [
       water_ml: 2500
     },
     minimumRequirements: {
-      protein_g: 96,
-      carbs_g: 120,
-      fat_g: 25,
-      kcal: 1100
+      protein_g: 105,
+      carbs_g: 160,
+      fat_g: 22,
+      kcal: 1300
     }
   }
 ];
