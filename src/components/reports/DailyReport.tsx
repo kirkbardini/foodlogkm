@@ -95,8 +95,8 @@ export const DailyReport: React.FC<DailyReportProps> = ({ date, onDateChange }) 
 
   // Fallback para dados mínimos se não estiverem definidos
   const fallbackMinimums = {
-    kirk: { protein_g: 125, carbs_g: 160, fat_g: 40, kcal: 1500 },
-    manu: { protein_g: 96, carbs_g: 120, fat_g: 25, kcal: 1100 }
+    kirk: { protein_g: 135, carbs_g: 185, fat_g: 40, kcal: 1750 },
+    manu: { protein_g: 100, carbs_g: 150, fat_g: 22, kcal: 1300 }
   };
   
   const minimumRequirements = currentUserData?.minimumRequirements || fallbackMinimums[currentUser as 'kirk' | 'manu'] || fallbackMinimums.kirk;
