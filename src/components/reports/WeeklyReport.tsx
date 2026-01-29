@@ -82,7 +82,7 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
   }));
 
   // Calcular metas semanais baseadas em dias ativos e fator semanal
-  const weeklyFactor = currentUserData?.weeklyGoalFactor || 1.0;
+  const weeklyFactor = currentUserData?.weeklyGoalFactor || 1.378;
   const weeklyGoals = {
     protein_g: Math.round(dailyGoal.protein_g * activeDaysCount),
     carbs_g: Math.round(dailyGoal.carbs_g * activeDaysCount),
@@ -122,8 +122,8 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
 
   // Fallback para dados mínimos se não estiverem definidos
   const fallbackMinimums = {
-    kirk: { protein_g: 125, carbs_g: 160, fat_g: 40, kcal: 1500 },
-    manu: { protein_g: 96, carbs_g: 120, fat_g: 25, kcal: 1100 }
+    kirk: { protein_g: 135, carbs_g: 185, fat_g: 40, kcal: 1750 },
+    manu: { protein_g: 100, carbs_g: 150, fat_g: 22, kcal: 1300 }
   };
   
   const minimumRequirements = currentUserData?.minimumRequirements || fallbackMinimums[currentUser as 'kirk' | 'manu'] || fallbackMinimums.kirk;
@@ -138,19 +138,19 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
       // Cor dinâmica baseada na performance
       consumedColor: weekTotals.protein_g < (minimumRequirements.protein_g * activeDaysCount)
         ? '#EF4444' // Vermelho se abaixo do mínimo
-        : weekTotals.protein_g <= weeklyGoals.protein_g * 1.10 
-          ? '#10B981' // Verde se entre mínimo e 110% da meta
-          : weekTotals.protein_g <= weeklyGoals.protein_g * 1.20
-            ? '#F59E0B' // Amarelo se entre 110% e 120% da meta
+        : weekTotals.protein_g <= weeklyGoals.protein_g * 1.15 
+          ? '#10B981' // Verde se entre mínimo e 115% da meta
+          : weekTotals.protein_g <= weeklyGoals.protein_g * 1.25
+            ? '#F59E0B' // Amarelo se entre 115% e 125% da meta
             : '#EF4444', // Vermelho se acima de 120% da meta
       // Label dinâmico para o topo da barra
       statusLabel: weekTotals.protein_g < (minimumRequirements.protein_g * activeDaysCount)
         ? '🔴 Abaixo' // Vermelho se abaixo do mínimo
-        : weekTotals.protein_g <= weeklyGoals.protein_g * 1.10 
-          ? '🟢 Meta' // Verde se entre mínimo e 110% da meta
-          : weekTotals.protein_g <= weeklyGoals.protein_g * 1.20
-            ? '🟡 Acima' // Amarelo se entre 110% e 120% da meta
-            : '🔴 Excesso' // Vermelho se acima de 120% da meta
+        : weekTotals.protein_g <= weeklyGoals.protein_g * 1.15 
+          ? '🟢 Meta' // Verde se entre mínimo e 115% da meta
+          : weekTotals.protein_g <= weeklyGoals.protein_g * 1.25
+            ? '🟡 Acima' // Amarelo se entre 115% e 125% da meta
+            : '🔴 Excesso' // Vermelho se acima de 125% da meta
     },
     {
       macro: 'Carboidratos',
@@ -160,19 +160,19 @@ export const WeeklyReport: React.FC<WeeklyReportProps> = ({ weekStart, onWeekCha
       // Cor dinâmica baseada na performance
       consumedColor: weekTotals.carbs_g < (minimumRequirements.carbs_g * activeDaysCount)
         ? '#EF4444' // Vermelho se abaixo do mínimo
-        : weekTotals.carbs_g <= weeklyGoals.carbs_g * 1.05 
+        : weekTotals.carbs_g <= weeklyGoals.carbs_g * 1.10 
           ? '#10B981' // Verde se entre mínimo e 105% da meta
-          : weekTotals.carbs_g <= weeklyGoals.carbs_g * 1.10
-            ? '#F59E0B' // Amarelo se entre 105% e 110% da meta
-            : '#EF4444', // Vermelho se acima de 110% da meta
+          : weekTotals.carbs_g <= weeklyGoals.carbs_g * 1.15
+            ? '#F59E0B' // Amarelo se entre 110% e 115% da meta
+            : '#EF4444', // Vermelho se acima de 115% da meta
       // Label dinâmico para o topo da barra
       statusLabel: weekTotals.carbs_g < (minimumRequirements.carbs_g * activeDaysCount)
         ? '🔴 Abaixo' // Vermelho se abaixo do mínimo
-        : weekTotals.carbs_g <= weeklyGoals.carbs_g * 1.05 
+        : weekTotals.carbs_g <= weeklyGoals.carbs_g * 1.10 
           ? '🟢 Meta' // Verde se entre mínimo e 105% da meta
-          : weekTotals.carbs_g <= weeklyGoals.carbs_g * 1.10
-            ? '🟡 Acima' // Amarelo se entre 105% e 110% da meta
-            : '🔴 Excesso' // Vermelho se acima de 110% da meta
+          : weekTotals.carbs_g <= weeklyGoals.carbs_g * 1.15
+            ? '🟡 Acima' // Amarelo se entre 110% e 115% da meta
+            : '🔴 Excesso' // Vermelho se acima de 115% da meta
     },
     {
       macro: 'Gorduras',
